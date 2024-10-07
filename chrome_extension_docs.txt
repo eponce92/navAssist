@@ -1,0 +1,652 @@
+User interface components 
+
+bookmark_border
+This is a catalog of user interface elements available in extensions. Each entry contains:
+
+An image of the element (if applicable).
+A description of what it's for.
+Related interface elements (if applicable).
+Links to implementation instructions and code samples.
+These elements are different ways of invoking extension features. You're not required to implement all of them. In fact, some use cases might not use any of them. For example, a link shorter could act on the displayed URL using a keyboard shortcut and put the shortened link into the clipboard programmatically.
+
+Actions
+An action is what happens when a user clicks the action icon for your extension. An action can either invoke an extension feature using the Action API or open a popup that lets users invoke multiple extension features. Tell users what the action does using a tooltip.
+
+Both a pinned extension and an unpinned extension.
+Figure 1: Pinned (left) and unpinned (right) extensions.
+To learn to build an action, see Implement an action, or examine the action samples.
+
+Action icons
+An extension requires at least one icon to represent it. Users click the icon to invoke an action, whether that action invokes an extension feature using the Action API or opens a popup.
+
+The icon for the Google dictionary extension.
+Figure 2: Icon for the Google dictionary extension (in red).
+You can also add a label, here called a 'badge', to the icon to communicate such things as extension state or that actions are required by the user.
+
+To learn to build an action, see Implement an action, or examine the action samples.
+
+Badges
+Badges are bits of formatted text placed on top of the action icon to indicate such things as extension state or that actions are required by the user. You can set the text of the badge by calling chrome.action.setBadgeText() and the banner color by calling chrome.action.setBadgeBackgroundColor().
+
+An extension icon without a badge and with a badge.
+Figure 3: An extension icon without a badge (left) and with a badge (right).
+To learn to build an action, see Implement an action, or the Drink water sample.
+
+Commands
+Commands are key combinations that invoke an extension feature. Define key combinations in the manifest.json file and respond to them using the Commands API. To learn to implement a command, see the API reference, or the chrome.commands sample.
+
+Context menu
+A context menu appears for the alternate click (frequently called the right click) of a mouse. Define context menus using the Context Menus API.
+
+A nested context menu.
+Figure 4: A context menu and a nested sub menu.
+To learn to implement a context menu, see the context menu samples.
+
+Omnibox
+You can interact with users using the Chrome omnibox. When a user enters extension-defined keywords in the omnibox, your extension controls what the user sees in the omnibox. Define keywords in the manifest.json and respond to them using the Omnibox API.
+
+The browser's omnibox.
+Figure 5: The browser's omnibox.
+To learn to override the omnibox, see Trigger actions from the omnibox, or the quick API reference sample.
+
+Override pages
+An extension can override one of these built-in Chrome pages:
+
+History
+New tab
+Bookmarks
+An example of a custom history page.
+Figure 6: An example of a custom history page.
+To learn to override Chrome pages, see Override Chrome pages, or the override sample.
+
+Popups
+A popup is an action that displays a window letting users invoke multiple extension features. Popups can be opened if the user clicks the action icon, via a keyboard shortcut or by calling chrome.action.openPopup().
+
+An example of a popup.
+Figure 7: An example of a popup.
+To learn to build a popup, see, Add a popup. You can also download a step through one of the action samples.
+
+Side panels
+A side panel lets users invoke extension features alongside web pages (see the image). A side panel can attach to a single tab or to a whole window. A side panel is controlled using the Side Panel API.
+
+Dictionary extension defining the word 
+Figure 8: Dictionary extension defining the word "Extensions".
+To learn to build a side panel, see the side panel use cases, or examine the side panel samples.
+
+Tooltips
+A tooltip is a way to show, when a user hovers a mouse of your action icon, what your extension's action does. By default, the tooltip displays the name of the extension.
+
+An example tooltip for an action icon.
+Figure 9: An example tooltip for an action icon.
+To learn to add a tooltip, use the "default_title" member of the manifest files "action" key.
+
+DevTools
+You can add custom panels (what tabs are called in DevTools) to DevTools using the DevTools Panels API. Other DevTools APIs let you monitor windows and network traffic. You can also customize the DevTools recorder panel. Chrome DevTools' own Lighthouse panel started life as a DevTools extension.
+
+Notifications
+Post messages to a user's system tray using either the extensions Notifications API or the web platforms Notifications API.
+
+An extension notification on mac.
+Figure 10: An extension notification on mac.
+To learn to use notifications, see Notify users.
+
+Themes
+A theme is a special kind of extension that changes the way the browser looks. Themes are packaged like regular extensions, but they don't contain JavaScript or HTML code.
+
+An example theme.
+Figure 11: An example theme.
+To learn to build a theme, see What are themes?.
+
+Other ways of interacting with users
+This section describes other ways that your extension can interact with users. Although not strictly needed for a basic extension, they can be important parts of your extension. For many users, some of these features are absolutely essential to using the extension.
+
+Accessibility
+For many users, accessibility literally is the user interface, and its features can often be useful to those who don't need accessibility as a primary means of interacting with your extension. Learn the basics of making your extension accessible.
+
+Internationalization
+Speak to users in their own language. Learn to internationalize the interface.
+
+
+Add a popup 
+
+bookmark_border
+A popup is an action that displays a window letting users invoke multiple extension features. It's triggered by a keyboard shortcut, by clicking the extension's action icon or by calling chrome.action.openPopup(). Popups automatically close when the user focuses on some portion of the browser outside of the popup. There is no way to keep the popup open after the user has clicked away.
+
+The following image, taken from the Drink Water Event sample, shows a popup displaying available timer options. Users set an alarm by clicking one of the buttons.
+
+An example of a popup.
+An example of a popup.
+Register a popup in the manifest under the "action" key.
+
+
+{
+ "name": "Drink Water Event",
+ ...
+ "action": {
+   "default_popup": "popup.html"
+ }
+ ...
+}
+Implement the popup as you would almost any other web page. Note that any JavaScript used in a popup must be in a separate file.
+
+
+<html>
+ <head>
+   <title>Water Popup</title>
+ </head>
+ <body>
+     <img src="./stay_hydrated.png" id="hydrateImage">
+     <button id="sampleSecond" value="0.1">Sample Second</button>
+     <button id="min15" value="15">15 Minutes</button>
+     <button id="min30" value="30">30 Minutes</button>
+     <button id="cancelAlarm">Cancel Alarm</button>
+   <script src="popup.js"></script>
+ </body>
+</html>
+You can also create popups dynamically by calling action.setPopup().
+
+
+chrome.storage.local.get('signed_in', (data) => {
+  if (data.signed_in) {
+    chrome.action.setPopup({popup: 'popup.html'});
+  } else {
+    chrome.action.setPopup({popup: 'popup_sign_in.html'});
+  }
+});
+
+
+Implement an action 
+
+bookmark_border
+An action is what happens when a user clicks the toolbar icon, usually called the action icon for your extension. An action invokes an extension feature using the Action API or opens a popup. This page shows how to invoke an extension feature. To use a popup, see Add a popup.
+
+Register the action
+To use the chrome.action API, add the "action" key to the the extension's manifest file. See the manifest section of the chrome.action API reference for a full description of the optional properties of this field.
+
+manifest.json:
+
+
+{
+  "name": "My Awesome action Extension",
+ ...
+  "action": {
+   ...
+  }
+ ...
+}
+Respond to the action
+Register an onClicked handler for when the user clicks the action icon. This event is not triggered if a popup is registered in the manifest.json file.
+
+service-worker.js:
+
+
+chrome.action.onClicked.addListener((tab) => {
+  chrome.action.setTitle({
+    tabId: tab.id,
+    title: `You are on tab: ${tab.id}`});
+});
+Activate the action conditionally
+The chrome.declarativeContent API lets you enable the extension's action icon based on the page URL or when CSS selectors match the elements on the page. When an extension's action icon is disabled, the icon is grayed out. If the user clicks the disabled icon, the extension's context menu appears.
+
+A disabled action icon
+A disabled action icon.
+Action badge
+Badges are bits of formatted text placed on top of the action icon to indicate such things as extension state or that actions are required by the user. To demonstrate this, the Drink Water sample displays a badge with "ON" to show the user they have successfully set an alarm and displays nothing when the extension is idle. Badges can contain up to four characters.
+
+An extension icon without a badge and with a badge.
+An extension icon without a badge (left) and with a badge (right).
+Set the text of the badge by calling chrome.action.setBadgeText() and the background color by calling chrome.action.setBadgeBackgroundColor()`.
+
+service-worker.js:
+
+
+chrome.action.setBadgeText({text: 'ON'});
+chrome.action.setBadgeBackgroundColor({color: '#4688F1'});
+Tooltip
+Register tooltips in the "default_title" field under the "action" key in the manifest.json file.
+
+manifest.json:
+
+
+{
+  "name": "Tab Flipper",
+ ...
+  "action": {
+    "default_title": "Press Ctrl(Win)/Command(Mac)+Shift+Right/Left to flip tabs"
+  }
+...
+}
+You can also set or update tooltips by calling action.setTitle()`. If no tooltip is set, the name of the extension displays.
+
+Build a context menu 
+
+bookmark_border
+A context menu appears for the alternate click (frequently called the right click) of a mouse. To build a context menu, first add the "contextMenus" permission to the manifest.json file.
+
+manifest.json:
+
+
+  "permissions": [
+    "contextMenus"
+  ],
+Optionally, use the "icons" key if you want to show an icon next to a menu item. In this example, the menu item for the "Global Google Search" extension uses a 16 by 16 icon.
+
+A context menu item with a 16 by 16 icon.
+A context menu item with a 16 by 16 icon.
+This rest of this example is taken from the Global Google Search context menu sample, which provides multiple context menu options. When an extension contains more than one context menu, Chrome automatically collapses them into a single parent menu as shown here:
+
+A nested context menu.
+Figure 4: A context menu and a nested sub menu.
+The sample shows this by calling contextMenus.create() in the extension service worker. Sub menu items are imported from the locales.js file. Then runtime.onInstalled iterates over them.
+
+service-worker.js:
+
+
+const tldLocales = {
+  'com.au': 'Australia',
+  'com.br': 'Brazil',
+  ...
+}
+
+chrome.runtime.onInstalled.addListener(async () => {
+  for (let [tld, locale] of Object.entries(tldLocales)) {
+    chrome.contextMenus.create({
+      id: tld,
+      title: locale,
+      type: 'normal',
+      contexts: ['selection'],
+    });
+  }
+});
+
+
+Override Chrome pages 
+
+bookmark_border
+Extensions can use HTML override pages to replace a page Google Chrome normally provides. An extension can contain an override for any of the following pages, but each extension can only override one page:
+
+Bookmark Manager
+The page that appears when the user chooses the Bookmark Manager menu item from the Chrome menu or, on Mac, the Bookmark Manager item from the Bookmarks menu. You can also get to this page by entering the URL chrome://bookmarks.
+History
+The page that appears when the user chooses the History menu item from the Chrome menu or, on Mac, the Show Full History item from the History menu. You can also get to this page by entering the URL chrome://history.
+New Tab
+The page that appears when the user creates a new tab or window. You can also get to this page by entering the URL chrome://newtab.
+The following screenshots show the default New Tab page and then a custom New Tab page.
+
+The default new tab page
+The default new tab page.
+A custom new tab page
+A custom new tab page.
+To try this out, see our override samples.
+
+Incognito window behavior
+In incognito windows, extensions can't override New Tab pages. Other pages still work if the incognito manifest property is set to "spanning" (the default value). For details on how to handle incognito windows, see Saving data and incognito mode.
+
+Manifest
+Use the following code to register an override page in the extension manifest:
+
+
+{
+  "manifest_version": 3,
+  "name": "My extension",
+  ...
+
+  "chrome_url_overrides" : {
+    "PAGE_TO_OVERRIDE": "myPage.html"
+  },
+  ...
+}
+For PAGE_TO_OVERRIDE, substitute one of the following:
+
+"bookmarks"
+"history"
+"newtab"
+Best practices
+Make your page quick and small.
+Users expect built-in browser pages to open instantly. Avoid doing things that might take a long time. Specifically, avoid accessing database resources synchronously. When making network requests, prefer fetch() over XMLHttpRequest().
+
+To avoid user confusion, give your page a title.
+Without a title, the page title defaults to the URL. Specify the title using the <title> tag in your HTML file.
+
+Remember that new tabs give keyboard focus to the address bar first.
+Don't rely on keyboard focus defaulting to other parts of the page.
+
+Make the new tab page your own.
+Avoid creating a new tab page which users may confuse with Chrome's default new tab page.
+
+Examples
+
+Trigger actions from the omnibox 
+
+bookmark_border
+You can allow users to interact with your extension through the Chrome omnibox (usually called the address bar). When a user enters extension-defined keywords in the omnibox, your extension controls what the user sees in the omnibox. The Omnibox New Tab Search sample extension uses "nt" as the keyword. When the user types "nt" into the omnibox, it activates the extension. To signal this to the user, it grayscales the provided 16 by 16 icon and displays it in the omnibox next to the extension name.
+
+
+An example of using the ominibox to trigger an action.
+The entered text causes Chrome to send an event to the omnibox.onInputEntered event handler. In the handler, the extension opens a new tab containing a Google Search for the user's entry.
+
+
+chrome.omnibox.onInputEntered.addListener((text) => {
+  // Encode user input for special characters , / ? : @ & = + $ #
+  const newURL = `https://www.google.com/search?q=${encodeURIComponent(text)}`;
+  chrome.tabs.create({ url: newURL });
+});
+Was this helpful?
+
+Give users options 
+
+bookmark_border
+Just as extensions allow users to customize the Chrome browser, the options page enables customization of the extension. Use options to enable features and allow users to choose what functionality is relevant to their needs.
+
+Locating the options page
+Users can access the options page by direct link or by right-clicking the extension icon in the toolbar and then selecting options. Additionally, users can navigate to the options page by, first, opening chrome://extensions, locating the desired extension, clicking Details, and then selecting the options link.
+
+Options page link in the user interface
+Link to the Options page.
+Context Menu Options page
+Right-clicking on the extension's icon.
+Write the options page
+The following is an example of an options page:
+
+options.html:
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Test Extension Options</title>
+  </head>
+  <body>
+    <select id="color">
+      <option value="red">red</option>
+      <option value="green">green</option>
+      <option value="blue">blue</option>
+      <option value="yellow">yellow</option>
+    </select>
+
+    <label>
+      <input type="checkbox" id="like" />
+      I like colors.
+    </label>
+
+    <div id="status"></div>
+    <button id="save">Save</button>
+
+    <script src="options.js"></script>
+  </body>
+</html>
+Below is an example options script. Save it in the same folder as options.html. This saves the user's preferred options across devices using the storage.sync API.
+
+options.js:
+
+
+// Saves options to chrome.storage
+const saveOptions = () => {
+  const color = document.getElementById('color').value;
+  const likesColor = document.getElementById('like').checked;
+
+  chrome.storage.sync.set(
+    { favoriteColor: color, likesColor: likesColor },
+    () => {
+      // Update status to let user know options were saved.
+      const status = document.getElementById('status');
+      status.textContent = 'Options saved.';
+      setTimeout(() => {
+        status.textContent = '';
+      }, 750);
+    }
+  );
+};
+
+// Restores select box and checkbox state using the preferences
+// stored in chrome.storage.
+const restoreOptions = () => {
+  chrome.storage.sync.get(
+    { favoriteColor: 'red', likesColor: true },
+    (items) => {
+      document.getElementById('color').value = items.favoriteColor;
+      document.getElementById('like').checked = items.likesColor;
+    }
+  );
+};
+
+document.addEventListener('DOMContentLoaded', restoreOptions);
+document.getElementById('save').addEventListener('click', saveOptions);
+Finally, add the "storage" permission to the extension's manifest file:
+
+manifest.json:
+
+
+{
+  "name": "My extension",
+  ...
+  "permissions": [
+    "storage"
+  ]
+  ...
+}
+Declare options page behavior
+There are two types of extension options pages, full page and embedded. The type of options page is determined by how it is declared in the manifest.
+
+Full page options
+A full page options page is displayed in a new tab. Register the options HTML file in the manifest in the "options_page" field.
+
+manifest.json:
+
+
+{
+  "name": "My extension",
+  ...
+  "options_page": "options.html",
+  ...
+}
+Full page options
+Full page options in a new tab.
+Embedded options
+An embedded options page allows users to adjust extension options without navigating away from the extensions management page inside an embedded box. To declare embedded options, register the HTML file under the "options_ui" field in the extension manifest, with the "open_in_tab" key set to false.
+
+manifest.json:
+
+
+{
+  "name": "My extension",
+  ...
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  ...
+}
+Embedded options
+Embedded options.
+page (string)
+Specifies the path to the options page, relative to the extension's root.
+open_in_tab (boolean)
+Indicates whether the extension's options page will be opened in a new tab. If set to false, the extension's options page is embedded in chrome://extensions rather than opened in a new tab.
+Consider the differences
+Options pages embedded inside chrome://extensions have subtle behavior differences from options pages in tabs.
+
+Link to the options page
+An extension can link directly to the options page by calling chrome.runtime.openOptionsPage(). For example, it can be added to a popup:
+
+popup.html:
+
+
+<button id="go-to-options">Go to options</button>
+<script src="popup.js"></script>
+popup.js:
+
+
+document.querySelector('#go-to-options').addEventListener('click', function() {
+  if (chrome.runtime.openOptionsPage) {
+    chrome.runtime.openOptionsPage();
+  } else {
+    window.open(chrome.runtime.getURL('options.html'));
+  }
+});
+Tabs API
+Because embedded options code is not hosted in a tab, the Tabs API cannot be used. Use runtime.connect() and runtime.sendMessage() instead, if the options page does need to manipulate the containing tab.
+
+Messaging APIs
+If an extension's options page sends a message using runtime.connect() or runtime.sendMessage(), the sender's tab will not be set, and the sender's URL will be the options page URL.
+
+Sizing
+The embedded options should automatically determine their own size based on the page content. However, the embedded box may not find a good size for some types of content. This problem is most common for options pages that adjust their content shape based on window size.
+
+If this is an issue, provide fixed minimum dimensions for the options page to ensure that the embedded page will find an appropriate size.
+
+Post messages to a user's system tray using the extensions Notifications API. Start by declaring the "notifications" permission in the manifest.json.
+
+
+{
+  "name": "Drink Water Event Popup",
+...
+  "permissions": [
+    "notifications",
+  ],
+...
+}
+Once the permission is declared, display a notification by calling notifications.create(). The following example is taken from the Drink water event popup sample. It uses an alarm to set a reminder to drink a glass of water. This code shows the triggering of the alarm. Follow the previous link to explore how this is set up.
+
+
+chrome.alarms.onAlarm.addListener(() => {
+  chrome.action.setBadgeText({ text: '' });
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'stay_hydrated.png',
+    title: 'Time to Hydrate',
+    message: "Everyday I'm Guzzlin'!",
+    buttons: [{ title: 'Keep it Flowing.' }],
+    priority: 0
+  });
+});
+This code creates a notification on macOS like the following.
+
+Respond to commands 
+
+bookmark_border
+Commands are key combinations that invoke an extension feature. Register commands in the manifest under the "commands" key. For example:
+
+
+{
+  "name": "Open developer.chrome.com",
+  "version": "0.1",
+  "manifest_version": 3,
+  "description": "Opens developer.chrome.com when you use Cmd/Ctrl + Shift + Z",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+   "open-tab": {
+     "suggested_key": {
+       "default": "Ctrl+Shift+Z",
+       "mac": "Command+Shift+Z"
+     },
+     "description": "Open developer.chrome.com"
+   }
+  }
+}
+This key combination triggers the commands.onCommand event in the service worker.
+
+
+chrome.commands.onCommand.addListener((command) => {
+  if (command !== "open-tab") return;
+  chrome.tabs.create({ url: "https://developer.chrome.com" });
+});
+To see responding to commands in action, download the The Tab Flipper sample and load it unpacked.
+
+What are themes? 
+
+bookmark_border
+A theme is a special kind of extension that changes the way the browser looks. Themes are packaged like regular extensions, but they don't contain JavaScript or HTML code.
+
+Themes are uploaded to the Chrome Web Store using the same procedure as an extension. During upload, you'll be asked to select a category. You'll find a list of theme categories in Chrome Web Store documentation under Best practices.
+
+You can find and try a bunch of themes at the Chrome Web Store.
+
+green plants theme
+
+love smoke theme
+
+jus d'orange theme
+
+Manifest
+Here is an example manifest.json file for a theme:
+
+
+{
+  "manifest_version": 3,
+  "version": "2.6",
+  "name": "camo theme",
+  "theme": {
+    "images" : {
+      "theme_frame" : "images/theme_frame_camo.png",
+      "theme_frame_overlay" : "images/theme_frame_stripe.png",
+      "theme_toolbar" : "images/theme_toolbar_camo.png",
+      "theme_ntp_background" : "images/theme_ntp_background_norepeat.png",
+      "theme_ntp_attribution" : "images/attribution.png"
+    },
+    "colors" : {
+      "frame" : [71, 105, 91],
+      "toolbar" : [207, 221, 192],
+      "ntp_text" : [20, 40, 0],
+      "ntp_link" : [36, 70, 0],
+      "ntp_section" : [207, 221, 192],
+      "button_background" : [255, 255, 255]
+    },
+    "tints" : {
+      "buttons" : [0.33, 0.5, 0.47]
+    },
+    "properties" : {
+      "ntp_background_alignment" : "bottom"
+    }
+  }
+}
+colors
+Colors are in RGB format. To find the strings you can use within the "colors" field, see kOverwritableColorTable.
+
+images
+Image resources use paths relative to the root of the extension. You can override any of the images that are specified by the strings in kPersistingImages. All images must be stored in PNG format or they will not render properly.
+
+properties
+This field lets you specify properties such as background alignment, background repeat, and an alternate logo. To see the properties and the values they can have, see kDisplayProperties.
+
+tints
+You can specify tints to be applied to parts of the UI such as buttons, the frame, and the background tab. Google Chrome supports tints, not images, because images don't work across platforms and are brittle in the case of adding new buttons. To find the strings you can use within the "tints" field, see kTintTable.
+
+Tints are in Hue-Saturation-Lightness (HSL) format, using floating-point numbers in the range 0 - 1.0:
+
+Hue is an absolute value, with 0 and 1 being red.
+Saturation is relative to the currently provided image. 0.5 is no change, 0 is totally desaturated, and 1 is full saturation.
+Lightness is also relative, with 0.5 being no change, 0 as all pixels black, and 1 as all pixels white.
+You can alternatively use -1.0 for any of the HSL values to specify no change.
+
+|Configure extension icons 
+
+bookmark_border
+An extension requires at least one icon to represent it in the toolbar. Provide icons in PNG format for the best visual results, although any raster format supported by Chrome is accepted. This includes BMP, GIF, ICO, and JPEG.
+
+Note: SVG files are not supported for any icons declared in the manifest.
+Ensure your icon follows the extension icon best practices. All icons should be square or they may be distorted. If no icons are supplied, Chrome will add a generic one to the toolbar using the first letter of the extension name.
+
+Include additional icons in the following sizes for uses outside of the toolbar.
+
+Size	Use
+16x16	Favicon on the extension's pages and context menu icon.
+32x32	Windows computers often require this size.
+48x48	Displays on the extension management page.
+128x128	Displays on installation and in the Chrome Web Store.
+Register icons in the manifest under the "icons" key.
+
+
+{
+ "name": "My Awesome Extension",
+ ...
+ "icons": {
+   "16": "extension_icon16.png",
+   "32": "extension_icon32.png",
+   "48": "extension_icon48.png",
+   "128": "extension_icon128.png"
+ }
+ ...
+}```

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ollama Chat</title>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+  <select id="modelSelect">
+    <option value="llama3.2">llama3.2</option>
+    <option value="qwen2.5:14b">qwen2.5:14b</option>
+    <option value="qwen2.5:latest">qwen2.5:latest</option>
+    <option value="my-dolphin-mistral-nemo:latest">my-dolphin-mistral-nemo:latest</option>
+    <option value="gemma2">gemma2</option>
+  </select>
+  <button id="toggleChat">Toggle Chat Window</button>
+  <button id="reloadExtension">Reload Extension</button>
+  <script src="popup.js"></script>
+</body>
+</html>
