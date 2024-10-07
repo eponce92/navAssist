@@ -1,5 +1,7 @@
 # 🚀 navAssist: Your AI-Powered Web Navigation Assistant
 
+![navAssist Logo](icon.png)
+
 ## 🌟 Features
 
 - 💬 Chat with various Ollama models right in your browser
