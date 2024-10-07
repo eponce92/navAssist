@@ -345,3 +345,46 @@ body.transitioning {
 #chatWindow.dragging {
   transition: none !important;
 }
+
+/* Add these styles to your existing styles.css file */
+
+.message-content pre {
+  background-color: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  overflow-x: auto;
+}
+
+.message-content code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9em;
+}
+
+.message-content ul, .message-content ol {
+  padding-left: 30px;
+  margin: 10px 0;
+}
+
+.message-content li {
+  margin-bottom: 5px;
+  list-style-position: outside;
+}
+
+.message-content ul li {
+  list-style-type: disc;
+}
+
+.message-content ol li {
+  list-style-type: decimal;
+}
+
+/* Dark mode styles */
+[data-theme="dark"] .message-content pre {
+  background-color: #2d2d2d;
+  border-color: #444;
+}
+
+[data-theme="dark"] .message-content code {
+  color: #e6e6e6;
+}

@@ -173,11 +173,31 @@ function sendMessage() {
     addMessage('User', message);
     messageInput.value = '';
     messageInput.style.height = 'auto';
-    chrome.runtime.sendMessage({action: 'sendMessage', message: message}, response => {
-      if (response && response.reply) {
-        addMessage('Assistant', response.reply);
-      } else {
-        addMessage('System', 'Error: No response received from the server.');
+    
+    // Create a placeholder for the assistant's response
+    const assistantMessageElement = addMessage('Assistant', '');
+    const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
+    let accumulatedMarkdown = '';
+    
+    chrome.runtime.sendMessage({action: 'sendMessage', message: message});
+
+    // Set up a listener for the streaming response
+    chrome.runtime.onMessage.addListener(function responseHandler(message) {
+      if (message.action === 'streamResponse') {
+        if (message.reply) {
+          accumulatedMarkdown += message.reply;
+          assistantMessageContent.innerHTML = markdownToHtml(accumulatedMarkdown);
+          const chatMessages = chatWindow.querySelector('#chatMessages');
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        if (message.done) {
+          // Response is complete, add the copy button
+          addCopyButton(assistantMessageElement, accumulatedMarkdown);
+
+          // Remove the listener
+          chrome.runtime.onMessage.removeListener(responseHandler);
+        }
       }
     });
   }
@@ -188,36 +208,56 @@ function addMessage(sender, text) {
   const messageElement = document.createElement('div');
   messageElement.className = `message ${sender.toLowerCase()}-message`;
   
-  // Create a container for the message content
   const messageContent = document.createElement('div');
   messageContent.className = 'message-content';
   messageContent.innerHTML = markdownToHtml(text);
   
   messageElement.appendChild(messageContent);
   
-  // Add copy button for assistant messages
-  if (sender.toLowerCase() === 'assistant') {
-    const copyButton = createCopyButton();
-    copyButton.addEventListener('click', () => {
-      navigator.clipboard.writeText(text).then(() => {
-        // Provide visual feedback
-        copyButton.classList.add('copied');
-        setTimeout(() => copyButton.classList.remove('copied'), 2000);
-      });
-    });
-    messageElement.appendChild(copyButton);
-  }
+  // Add copy button to all messages
+  addCopyButton(messageElement, text);
   
   chatMessages.appendChild(messageElement);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  return messageElement;
+}
+
+function addCopyButton(messageElement, textToCopy) {
+  const copyButton = createCopyButton();
+  copyButton.addEventListener('click', () => {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      copyButton.classList.add('copied');
+      setTimeout(() => copyButton.classList.remove('copied'), 2000);
+    });
+  });
+  messageElement.appendChild(copyButton);
 }
 
 function markdownToHtml(markdown) {
   return markdown
+    // Headers
+    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+    // Bold text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>')
-    .replace(/^- (.*)/gm, '<li>$1</li>')
-    .replace(/<li>.*?<\/li>/gs, match => `<ul>${match}</ul>`);
+    // Italic text
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Code blocks
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Unordered lists
+    .replace(/^\s*[\*\-\+] (.+)/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)\s+(?=<li>)/g, '$1</ul><ul>')
+    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    // Ordered lists
+    .replace(/^\s*(\d+)\. (.+)/gm, '<li>$2</li>')
+    .replace(/(<li>.*<\/li>)\s+(?=<li>)/g, '$1</ol><ol>')
+    .replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>')
+    // Line breaks
+    .replace(/\n/g, '<br>');
 }
 
 function restartChat() {
@@ -267,12 +307,34 @@ function createCopyButton() {
 
 // Add this function to handle the summarize button click
 function summarizePageContent() {
-  addMessage('System', 'Summarizing page content...');
-  chrome.runtime.sendMessage({action: 'summarizeContent'}, response => {
-    if (response && response.summary) {
-      addMessage('Assistant', response.summary);
-    } else {
-      addMessage('System', 'Error: Unable to summarize page content.');
+  const assistantMessageElement = addMessage('Assistant', 'Summarizing page content...');
+  const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
+  let accumulatedMarkdown = '';
+  
+  chrome.runtime.sendMessage({action: 'summarizeContent'});
+
+  // Set up a listener for the streaming summary response
+  chrome.runtime.onMessage.addListener(function summaryHandler(message) {
+    if (message.action === 'streamResponse') {
+      if (message.reply) {
+        // Clear the "Summarizing page content..." message on first chunk
+        if (accumulatedMarkdown === '') {
+          assistantMessageContent.innerHTML = '';
+        }
+        
+        accumulatedMarkdown += message.reply;
+        assistantMessageContent.innerHTML = markdownToHtml(accumulatedMarkdown);
+        const chatMessages = chatWindow.querySelector('#chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      if (message.done) {
+        // Summary is complete, add the copy button
+        addCopyButton(assistantMessageElement, accumulatedMarkdown);
+
+        // Remove the listener
+        chrome.runtime.onMessage.removeListener(summaryHandler);
+      }
     }
   });
 }
