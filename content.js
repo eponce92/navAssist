@@ -13,6 +13,7 @@ function createChatWindow() {
   chatWindow.id = 'chatWindow';
   chatWindow.innerHTML = `
     <div id="chatHeader">
+      <img src="${chrome.runtime.getURL('icon.png')}" alt="Ollama Chat Icon" id="chatIcon">
       <span>Ollama Chat</span>
       <div class="chat-controls">
         <button id="toggleSidebar" title="Toggle Sidebar/Popup">

@@ -4,18 +4,12 @@
   "version": "1.0",
   "description": "Chat with various Ollama models",
   "icons": {
-    "16": "icon-16.png",
-    "48": "icon-48.png",
-    "128": "icon-128.png"
+    "128": "icon.png"
   },
   "permissions": ["activeTab", "storage", "tabs"],
   "action": {
     "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icon-16.png",
-      "48": "icon-48.png",
-      "128": "icon-128.png"
-    }
+    "default_icon": "icon.png"
   },
   "content_scripts": [
     {
@@ -30,7 +24,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["content.js", "styles.css"],
+      "resources": ["content.js", "styles.css", "icon.png"],
       "matches": ["<all_urls>"]
     }
   ]

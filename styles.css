@@ -42,9 +42,19 @@
   cursor: move;
   user-select: none;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   font-size: 16px;
+}
+
+#chatIcon {
+  width: 24px;
+  height: 24px;
+  margin-right: 10px;
+}
+
+#chatHeader span {
+  flex-grow: 1;
 }
 
 #restartChat {
