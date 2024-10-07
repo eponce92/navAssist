@@ -96,21 +96,27 @@ function handleMouseMove(e) {
     const dy = e.clientY - initialPos.y;
     const newLeft = chatWindow.offsetLeft + dx;
     const newTop = chatWindow.offsetTop + dy;
-    chatWindow.style.left = `${newLeft}px`;
-    chatWindow.style.top = `${newTop}px`;
+    requestAnimationFrame(() => {
+      chatWindow.style.left = `${newLeft}px`;
+      chatWindow.style.top = `${newTop}px`;
+    });
     initialPos = { x: e.clientX, y: e.clientY };
   } else if (isResizing) {
     const dx = e.clientX - initialPos.x;
     const dy = e.clientY - initialPos.y;
     const newWidth = Math.max(300, initialSize.width + dx);
     const newHeight = Math.max(400, initialSize.height + dy);
-    chatWindow.style.width = `${newWidth}px`;
-    chatWindow.style.height = `${newHeight}px`;
+    requestAnimationFrame(() => {
+      chatWindow.style.width = `${newWidth}px`;
+      chatWindow.style.height = `${newHeight}px`;
+    });
   } else if (isResizingSidebar) {
     const dx = initialPos.x - e.clientX;
     const newWidth = Math.max(300, initialSidebarWidth + dx);
-    chatWindow.style.width = `${newWidth}px`;
-    document.body.style.marginRight = `${newWidth}px`;
+    requestAnimationFrame(() => {
+      chatWindow.style.width = `${newWidth}px`;
+      document.body.style.marginRight = `${newWidth}px`;
+    });
   }
 }
 
@@ -286,35 +292,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Add this function to toggle between sidebar and popup modes
 function toggleSidebarMode() {
   isSidebar = !isSidebar;
+  chatWindow.classList.add('transitioning');
   if (isSidebar) {
     setSidebarMode();
   } else {
     setPopupMode();
   }
+  setTimeout(() => {
+    chatWindow.classList.remove('transitioning');
+  }, 300);
 }
 
 // Add this function to set sidebar mode
 function setSidebarMode() {
   chatWindow.classList.add('sidebar-mode');
   chatWindow.classList.remove('popup-mode');
-  chatWindow.style.width = `${initialSidebarWidth}px`;
-  chatWindow.style.height = '100%';
-  chatWindow.style.top = '0';
-  chatWindow.style.right = '0';
-  chatWindow.style.left = 'auto';
-  chatWindow.style.bottom = 'auto';
-  document.body.style.marginRight = `${initialSidebarWidth}px`;
+  requestAnimationFrame(() => {
+    chatWindow.style.width = `${initialSidebarWidth}px`;
+    chatWindow.style.height = '100%';
+    chatWindow.style.top = '0';
+    chatWindow.style.right = '0';
+    chatWindow.style.left = 'auto';
+    chatWindow.style.bottom = 'auto';
+    document.body.style.marginRight = `${initialSidebarWidth}px`;
+  });
 }
 
 // Add this function to set popup mode
 function setPopupMode() {
   chatWindow.classList.remove('sidebar-mode');
   chatWindow.classList.add('popup-mode');
-  chatWindow.style.width = '350px';
-  chatWindow.style.height = '500px';
-  chatWindow.style.top = '60px';
-  chatWindow.style.right = '40px';
-  chatWindow.style.left = 'auto';
-  chatWindow.style.bottom = 'auto';
-  document.body.style.marginRight = '0';
+  requestAnimationFrame(() => {
+    chatWindow.style.width = '350px';
+    chatWindow.style.height = '500px';
+    chatWindow.style.top = '60px';
+    chatWindow.style.right = '40px';
+    chatWindow.style.left = 'auto';
+    chatWindow.style.bottom = 'auto';
+    document.body.style.marginRight = '0';
+  });
 }
