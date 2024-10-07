@@ -8,6 +8,8 @@ let isResizingSidebar = false;
 let initialSidebarWidth = 500;
 let isChatVisible = true;
 let isExtensionActive = true;
+let floatingBar = null;
+let selectedText = '';
 
 function createChatWindow() {
   console.log('Creating navAssist window');
@@ -532,6 +534,10 @@ function removeChatWindow() {
   if (toggleButton) {
     toggleButton.remove();
   }
+  if (floatingBar) {
+    floatingBar.remove();
+    floatingBar = null;
+  }
 }
 
 // Modify this message listener
@@ -568,3 +574,72 @@ function loadChatHistory() {
     }
   });
 }
+
+// Add this function to create the floating bar
+function createFloatingBar() {
+  floatingBar = document.createElement('div');
+  floatingBar.id = 'navAssistFloatingBar';
+  floatingBar.innerHTML = `
+    <button id="transferToChat" title="Transfer to Chat">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </svg>
+    </button>
+  `;
+  document.body.appendChild(floatingBar);
+
+  const transferButton = floatingBar.querySelector('#transferToChat');
+  transferButton.addEventListener('click', transferSelectedTextToChat);
+}
+
+// Add this function to show the floating bar
+function showFloatingBar(x, y) {
+  if (!floatingBar) {
+    createFloatingBar();
+  }
+  floatingBar.style.left = `${x}px`;
+  floatingBar.style.top = `${y}px`;
+  floatingBar.style.display = 'block';
+}
+
+// Add this function to hide the floating bar
+function hideFloatingBar() {
+  if (floatingBar) {
+    floatingBar.style.display = 'none';
+  }
+}
+
+// Add this function to transfer selected text to chat
+function transferSelectedTextToChat() {
+  if (selectedText && chatWindow) {
+    const messageInput = chatWindow.querySelector('#messageInput');
+    messageInput.value = selectedText;
+    messageInput.focus();
+    hideFloatingBar();
+  }
+}
+
+// Modify the existing document.addEventListener('mouseup', ...) function
+document.addEventListener('mouseup', (e) => {
+  if (!isExtensionActive) return;
+
+  const selection = window.getSelection();
+  selectedText = selection.toString().trim();
+
+  if (selectedText) {
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    showFloatingBar(rect.left + window.scrollX, rect.bottom + window.scrollY);
+  } else {
+    hideFloatingBar();
+  }
+});
+
+// Add this event listener to hide the floating bar when clicking outside
+document.addEventListener('mousedown', (e) => {
+  if (floatingBar && !floatingBar.contains(e.target)) {
+    hideFloatingBar();
+  }
+});

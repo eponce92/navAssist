@@ -482,3 +482,34 @@ body.transitioning {
   /* Remove the following line */
   /* transform: rotate(180deg); */
 }
+
+#navAssistFloatingBar {
+  position: absolute;
+  display: none;
+  background-color: var(--primary-color);
+  border-radius: 4px;
+  padding: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 2147483646; /* One less than the chat window */
+}
+
+#navAssistFloatingBar button {
+  background-color: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+#navAssistFloatingBar button:hover {
+  transform: scale(1.1);
+}
+
+#navAssistFloatingBar svg {
+  width: 16px;
+  height: 16px;
+}
