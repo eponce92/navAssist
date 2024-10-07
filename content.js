@@ -19,8 +19,10 @@ function createChatWindow() {
   
   chatWindow.innerHTML = `
     <div id="chatHeader">
-      <img src="${chrome.runtime.getURL('icon.png')}" alt="navAssist Icon" id="chatIcon">
-      <span>navAssist</span>
+      <div id="dragHandle">
+        <img src="${chrome.runtime.getURL('icon.png')}" alt="navAssist Icon" id="chatIcon">
+        <span>navAssist</span>
+      </div>
       <div class="chat-controls">
         <button id="hideChat" title="Hide Chat">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -62,6 +64,10 @@ function createChatWindow() {
     <div id="sidebarResizeHandle"></div>
   `;
   document.body.appendChild(chatWindow);
+
+  // Change this line to use the new dragHandle
+  const dragHandle = chatWindow.querySelector('#dragHandle');
+  dragHandle.addEventListener('mousedown', startDragging);
 
   // Set initial position and size for sidebar
   setSidebarMode();
@@ -149,7 +155,7 @@ function handleMouseUp() {
 }
 
 function startDragging(e) {
-  if (e.target !== e.currentTarget) return;
+  // Remove the check for e.target === e.currentTarget
   isDragging = true;
   initialPos = { x: e.clientX, y: e.clientY };
   document.body.style.userSelect = 'none';
@@ -378,6 +384,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Add this function to toggle between sidebar and popup modes
 function toggleSidebarMode() {
   isSidebar = !isSidebar;
+  chrome.storage.local.set({ isSidebar: isSidebar }); // Save the new mode
   chatWindow.classList.add('transitioning');
   if (isSidebar) {
     setSidebarMode();
@@ -489,6 +496,12 @@ function updateChatWindowVisibility() {
       if (toggleButton) {
         toggleButton.style.display = 'none';
       }
+      // Set the correct mode after creating or showing the window
+      if (isSidebar) {
+        setSidebarMode();
+      } else {
+        setPopupMode();
+      }
     } else {
       if (chatWindow) {
         chatWindow.style.display = 'none';
@@ -501,9 +514,10 @@ function updateChatWindowVisibility() {
 }
 
 function initializeChatWindow() {
-  chrome.storage.local.get(['isChatVisible', 'isExtensionActive'], (result) => {
+  chrome.storage.local.get(['isChatVisible', 'isExtensionActive', 'isSidebar'], (result) => {
     isChatVisible = result.isChatVisible !== false; // Default to true if not set
     isExtensionActive = result.isExtensionActive !== false; // Default to true if not set
+    isSidebar = result.isSidebar !== false; // Default to true (sidebar mode) if not set
     
     updateChatWindowVisibility();
   });
