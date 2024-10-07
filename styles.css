@@ -6,6 +6,7 @@
   --shadow-color: rgba(0, 0, 0, 0.1);
   --message-bg-user: #e1f0ff;
   --message-bg-assistant: #f0f0f0;
+  --primary-color-hover: #2980b9;
 }
 
 [data-theme="dark"] {
@@ -16,6 +17,7 @@
   --shadow-color: rgba(0, 0, 0, 0.3);
   --message-bg-user: #174ea6;
   --message-bg-assistant: #303134;
+  --primary-color-hover: #3a7cbd;
 }
 
 #chatWindow {
@@ -414,4 +416,53 @@ body.transitioning {
 
 [data-theme="dark"] .message-content a {
   color: #5dade2;
+}
+
+/* Add these styles at the end of the file */
+
+#hideChat {
+  background-color: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 5px;
+  margin-right: 5px;
+  transition: transform 0.2s ease;
+}
+
+#hideChat:hover {
+  transform: scale(1.1);
+}
+
+#hideChat svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+#showChatToggle {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-top-right-radius: 50%;
+  border-bottom-right-radius: 50%;
+  padding: 10px 10px 10px 5px;
+  cursor: pointer;
+  z-index: 9998;
+  box-shadow: 2px 0 5px var(--shadow-color);
+  transition: background-color 0.3s ease;
+}
+
+#showChatToggle:hover {
+  background-color: var(--primary-color-hover);
+}
+
+#showChatToggle svg {
+  width: 24px;
+  height: 24px;
+  display: block;
 }

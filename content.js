@@ -16,6 +16,11 @@ function createChatWindow() {
       <img src="${chrome.runtime.getURL('icon.png')}" alt="Ollama Chat Icon" id="chatIcon">
       <span>Ollama Chat</span>
       <div class="chat-controls">
+        <button id="hideChat" title="Hide Chat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
         <button id="toggleSidebar" title="Toggle Sidebar/Popup">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -84,6 +89,9 @@ function createChatWindow() {
 
   // Apply theme
   applyTheme();
+
+  const hideButton = chatWindow.querySelector('#hideChat');
+  hideButton.addEventListener('click', hideChatWindow);
 }
 
 function applyTheme() {
@@ -279,11 +287,7 @@ function restartChat() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'toggleChat') {
-    if (chatWindow) {
-      chatWindow.style.display = chatWindow.style.display === 'none' ? 'block' : 'none';
-    } else {
-      createChatWindow();
-    }
+    toggleChat();
   }
   // Add this to your existing chrome.runtime.onMessage listener
   if (request.action === 'logFinalResponse') {
@@ -402,4 +406,43 @@ function setPopupMode() {
     chatWindow.style.bottom = 'auto';
     document.body.style.marginRight = '0';
   });
+}
+
+// Add these new functions
+function hideChatWindow() {
+  chatWindow.style.display = 'none';
+  showChatToggle();
+}
+
+function showChatToggle() {
+  const toggleButton = document.createElement('button');
+  toggleButton.id = 'showChatToggle';
+  toggleButton.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+  `;
+  toggleButton.addEventListener('click', showChatWindow);
+  document.body.appendChild(toggleButton);
+}
+
+function showChatWindow() {
+  chatWindow.style.display = 'flex';
+  const toggleButton = document.getElementById('showChatToggle');
+  if (toggleButton) {
+    toggleButton.remove();
+  }
+}
+
+// Modify the existing toggleChat function
+function toggleChat() {
+  if (chatWindow) {
+    if (chatWindow.style.display === 'none') {
+      showChatWindow();
+    } else {
+      hideChatWindow();
+    }
+  } else {
+    createChatWindow();
+  }
 }
