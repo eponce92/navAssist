@@ -56,10 +56,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           chrome.storage.sync.get('selectedModel', (data) => {
             const model = data.selectedModel || 'llama3.2';
             
-            // Detect the language of the page content
-            const language = detectLanguage(pageContent);
-            
-            const prompt = `Summarize the following content in ${language}:\n\n${pageContent}`;
+            const prompt = 
+                          `Summarize the following content in the same language as the content:
+
+                          Resuma el siguiente contenido en el mismo idioma que el contenido:
+
+                          Résumez le contenu suivant dans la même langue que le contenu:
+
+                          Zusammenfassen Sie den folgenden Inhalt in derselben Sprache wie den Inhalt:
+
+                          ${pageContent}`;
             
             fetch('http://localhost:11434/v1/chat/completions', {
               method: 'POST',
@@ -90,21 +96,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Simple language detection function (you may want to use a more sophisticated library for better accuracy)
-function detectLanguage(text) {
-  // This is a very basic detection. You might want to use a proper language detection library.
-  const langPatterns = {
-    en: /^[a-zA-Z\s.,!?]+$/,
-    es: /^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s.,!?¿¡]+$/,
-    fr: /^[a-zàâçéèêëîïôûùüÿæœA-ZÀÂÇÉÈÊËÎÏÔÛÙÜŸÆŒ\s.,!?]+$/,
-    // Add more languages as needed
-  };
-
-  for (const [lang, pattern] of Object.entries(langPatterns)) {
-    if (pattern.test(text.slice(0, 100))) { // Check first 100 characters
-      return lang;
-    }
-  }
-
-  return 'en'; // Default to English if no match is found
-}
+// Remove the detectLanguage function as it's no longer needed
