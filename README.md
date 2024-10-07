@@ -1,6 +1,4 @@
-# 🚀 navAssist: Your AI-Powered Web Navigation Assistant
-
-![navAssist Logo](icon.png)
+# 🚀 navAssist: Your AI-Powered Web Navigation Assistant <img src="icon.png" alt="navAssist Icon" width="32" height="32" style="vertical-align: middle;">
 
 ## 🌟 Features
 
