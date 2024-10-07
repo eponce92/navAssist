@@ -34,6 +34,12 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
   color: var(--text-color);
+  transition: none;
+}
+
+#chatWindow.dragging {
+  transition: none !important;
+  opacity: 0.8;
 }
 
 #chatHeader {
@@ -57,6 +63,7 @@
 
 #chatHeader span {
   flex-grow: 1;
+  /* Styles for the navAssist title */
 }
 
 #restartChat {
@@ -442,18 +449,19 @@ body.transitioning {
 
 #showChatToggle {
   position: fixed;
-  left: 0;
+  right: 0;
+  left: auto;
   top: 50%;
   transform: translateY(-50%);
   background-color: var(--primary-color);
   color: white;
   border: none;
-  border-top-right-radius: 50%;
-  border-bottom-right-radius: 50%;
-  padding: 10px 10px 10px 5px;
+  border-top-left-radius: 50%;
+  border-bottom-left-radius: 50%;
+  padding: 10px 5px 10px 10px;
   cursor: pointer;
   z-index: 9998;
-  box-shadow: 2px 0 5px var(--shadow-color);
+  box-shadow: -2px 0 5px var(--shadow-color);
   transition: background-color 0.3s ease;
 }
 
@@ -465,4 +473,6 @@ body.transitioning {
   width: 24px;
   height: 24px;
   display: block;
+  /* Remove the following line */
+  /* transform: rotate(180deg); */
 }

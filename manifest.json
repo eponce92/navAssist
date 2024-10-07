@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Ollama Chat Extension",
+  "name": "navAssist",
   "version": "1.0",
   "description": "Chat with various Ollama models",
   "icons": {

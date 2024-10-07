@@ -6,15 +6,21 @@ let initialSize = { width: 0, height: 0 };
 let isSidebar = true;
 let isResizingSidebar = false;
 let initialSidebarWidth = 500;
+let isChatVisible = true;
+let isExtensionActive = true;
 
 function createChatWindow() {
-  console.log('Creating chat window');
+  console.log('Creating navAssist window');
   chatWindow = document.createElement('div');
   chatWindow.id = 'chatWindow';
+  
+  // Set initial display based on isChatVisible
+  chatWindow.style.display = isChatVisible ? 'flex' : 'none';
+  
   chatWindow.innerHTML = `
     <div id="chatHeader">
-      <img src="${chrome.runtime.getURL('icon.png')}" alt="Ollama Chat Icon" id="chatIcon">
-      <span>Ollama Chat</span>
+      <img src="${chrome.runtime.getURL('icon.png')}" alt="navAssist Icon" id="chatIcon">
+      <span>navAssist</span>
       <div class="chat-controls">
         <button id="hideChat" title="Hide Chat">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -29,9 +35,10 @@ function createChatWindow() {
         </button>
         <button id="summarizeContent" title="Summarize page content">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12" y2="8"></line>
+            <line x1="21" y1="10" x2="7" y2="10"></line>
+            <line x1="21" y1="6" x2="3" y2="6"></line>
+            <line x1="21" y1="14" x2="3" y2="14"></line>
+            <line x1="21" y1="18" x2="7" y2="18"></line>
           </svg>
         </button>
         <button id="restartChat" title="Restart Chat">
@@ -92,6 +99,12 @@ function createChatWindow() {
 
   const hideButton = chatWindow.querySelector('#hideChat');
   hideButton.addEventListener('click', hideChatWindow);
+
+  // Ensure correct visibility state after creation
+  updateChatWindowVisibility();
+
+  // Load chat history
+  loadChatHistory();
 }
 
 function applyTheme() {
@@ -105,10 +118,8 @@ function handleMouseMove(e) {
     const dy = e.clientY - initialPos.y;
     const newLeft = chatWindow.offsetLeft + dx;
     const newTop = chatWindow.offsetTop + dy;
-    requestAnimationFrame(() => {
-      chatWindow.style.left = `${newLeft}px`;
-      chatWindow.style.top = `${newTop}px`;
-    });
+    chatWindow.style.left = `${newLeft}px`;
+    chatWindow.style.top = `${newTop}px`;
     initialPos = { x: e.clientX, y: e.clientY };
   } else if (isResizing) {
     const dx = e.clientX - initialPos.x;
@@ -134,13 +145,15 @@ function handleMouseUp() {
   isResizing = false;
   isResizingSidebar = false;
   document.body.style.userSelect = '';
+  chatWindow.classList.remove('dragging');
 }
 
 function startDragging(e) {
-  if (e.target !== e.currentTarget || isSidebar) return;
+  if (e.target !== e.currentTarget) return;
   isDragging = true;
   initialPos = { x: e.clientX, y: e.clientY };
   document.body.style.userSelect = 'none';
+  chatWindow.classList.add('dragging');
   e.preventDefault();
 }
 
@@ -302,8 +315,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addListener(() => {
   }
 });
 
-createChatWindow();
-
 // Add this function to create the copy button
 function createCopyButton() {
   const button = document.createElement('button');
@@ -408,41 +419,138 @@ function setPopupMode() {
   });
 }
 
-// Add these new functions
 function hideChatWindow() {
-  chatWindow.style.display = 'none';
-  showChatToggle();
+  if (chatWindow) {
+    chatWindow.style.display = 'none';
+    isChatVisible = false;
+    chrome.storage.local.set({ isChatVisible: false }, () => {
+      showChatToggle();
+    });
+  }
 }
 
 function showChatToggle() {
-  const toggleButton = document.createElement('button');
-  toggleButton.id = 'showChatToggle';
-  toggleButton.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M19 12H5M12 19l-7-7 7-7"/>
-    </svg>
-  `;
-  toggleButton.addEventListener('click', showChatWindow);
-  document.body.appendChild(toggleButton);
+  if (!isExtensionActive) return;
+  
+  let toggleButton = document.getElementById('showChatToggle');
+  if (!toggleButton) {
+    toggleButton = document.createElement('button');
+    toggleButton.id = 'showChatToggle';
+    toggleButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+    `;
+    toggleButton.addEventListener('click', showChatWindow);
+    document.body.appendChild(toggleButton);
+    
+    // Position the toggle button on the right side of the window
+    toggleButton.style.position = 'fixed';
+    toggleButton.style.right = '0';
+    toggleButton.style.top = '50%';
+    toggleButton.style.transform = 'translateY(-50%)';
+  }
+  toggleButton.style.display = 'block';
 }
 
 function showChatWindow() {
-  chatWindow.style.display = 'flex';
+  if (!isExtensionActive) return;
+  
+  if (chatWindow) {
+    chatWindow.style.display = 'flex';
+    isChatVisible = true;
+    chrome.storage.local.set({ isChatVisible: true });
+    const toggleButton = document.getElementById('showChatToggle');
+    if (toggleButton) {
+      toggleButton.style.display = 'none';
+    }
+  } else {
+    createChatWindow();
+  }
+}
+
+function toggleChat() {
+  if (isChatVisible) {
+    hideChatWindow();
+  } else {
+    showChatWindow();
+  }
+}
+
+function updateChatWindowVisibility() {
+  if (isExtensionActive) {
+    if (isChatVisible) {
+      if (chatWindow) {
+        chatWindow.style.display = 'flex';
+      } else {
+        createChatWindow();
+      }
+      const toggleButton = document.getElementById('showChatToggle');
+      if (toggleButton) {
+        toggleButton.style.display = 'none';
+      }
+    } else {
+      if (chatWindow) {
+        chatWindow.style.display = 'none';
+      }
+      showChatToggle();
+    }
+  } else {
+    removeChatWindow();
+  }
+}
+
+function initializeChatWindow() {
+  chrome.storage.local.get(['isChatVisible', 'isExtensionActive'], (result) => {
+    isChatVisible = result.isChatVisible !== false; // Default to true if not set
+    isExtensionActive = result.isExtensionActive !== false; // Default to true if not set
+    
+    updateChatWindowVisibility();
+  });
+}
+
+function removeChatWindow() {
+  if (chatWindow) {
+    chatWindow.remove();
+    chatWindow = null;
+  }
   const toggleButton = document.getElementById('showChatToggle');
   if (toggleButton) {
     toggleButton.remove();
   }
 }
 
-// Modify the existing toggleChat function
-function toggleChat() {
-  if (chatWindow) {
-    if (chatWindow.style.display === 'none') {
-      showChatWindow();
+// Modify this message listener
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'toggleExtensionPower') {
+    isExtensionActive = request.isEnabled;
+    if (isExtensionActive) {
+      updateChatWindowVisibility();
     } else {
-      hideChatWindow();
+      removeChatWindow();
     }
-  } else {
-    createChatWindow();
   }
+  // ... (keep existing message listeners) ...
+});
+
+// Call this function when the content script loads
+initializeChatWindow();
+
+// Listen for visibility changes
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    updateChatWindowVisibility();
+  }
+});
+
+function loadChatHistory() {
+  chrome.runtime.sendMessage({action: 'getChatHistory'}, (history) => {
+    if (history && history.length > 0) {
+      const chatMessages = chatWindow.querySelector('#chatMessages');
+      chatMessages.innerHTML = '';
+      history.forEach((message) => {
+        addMessage(message.role === 'user' ? 'User' : 'Assistant', message.content);
+      });
+    }
+  });
 }

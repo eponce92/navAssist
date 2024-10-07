@@ -1,73 +1,73 @@
-let chatHistory = [];
+let chatHistories = {};
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  const tabId = sender.tab.id;
+
   if (request.action === 'sendMessage') {
-    handleSendMessage(request, sender);
-    return true; // Indicates that the response will be sent asynchronously
+    handleSendMessage(request, sender, tabId);
+    return true;
   } else if (request.action === 'clearChatHistory') {
-    chatHistory = []; // Clear the chat history
+    clearChatHistory(tabId);
     sendResponse({success: true});
     return true;
   } else if (request.action === 'summarizeContent') {
-    handleSummarizeContent(sender);
-    return true; // Indicates that the response will be sent asynchronously
+    handleSummarizeContent(sender, tabId);
+    return true;
+  } else if (request.action === 'getChatHistory') {
+    getChatHistory(tabId, sendResponse);
+    return true;
   }
 });
 
-function handleSendMessage(request, sender) {
+function handleSendMessage(request, sender, tabId) {
   chrome.storage.sync.get('selectedModel', (data) => {
-    const model = data.selectedModel || 'llama3.2'; // Default to llama3.2 if no model is selected
+    const model = data.selectedModel || 'llama3.2';
     
-    // Add the user's message to the chat history
-    chatHistory.push({ role: 'user', content: request.message });
-    
-    streamResponse(model, chatHistory, sender.tab.id, true);
+    getChatHistory(tabId, (history) => {
+      history.push({ role: 'user', content: request.message });
+      saveChatHistory(tabId, history);
+      streamResponse(model, history, sender.tab.id, true);
+    });
   });
 }
 
-function handleSummarizeContent(sender) {
-  chrome.tabs.query({active: true, currentWindow: true}, tabs => {
-    if (tabs[0]) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: 'getPageContent'}, pageContent => {
-        if (chrome.runtime.lastError) {
-          console.error('Error getting page content:', chrome.runtime.lastError);
-          chrome.tabs.sendMessage(sender.tab.id, {action: 'streamResponse', reply: 'Error: Unable to access page content.', done: true});
-          return;
-        }
-        
-        if (!pageContent) {
-          console.error('No page content received');
-          chrome.tabs.sendMessage(sender.tab.id, {action: 'streamResponse', reply: 'Error: No page content received.', done: true});
-          return;
-        }
-
-        console.log('Page content received, length:', pageContent.length);
-        
-        chrome.storage.sync.get('selectedModel', (data) => {
-          const model = data.selectedModel || 'llama3.2';
-          
-          const prompt = 
-            `USE MARKDOWN FORMAT FOR YOUR RESPONSE !!!
-            Summarize the following content in the same language as the content:
-
-            Resuma el siguiente contenido en el mismo idioma que el contenido:
-
-            Résumez le contenu suivant dans la même langue que le contenu:
-
-            Zusammenfassen Sie den folgenden Inhalt in derselben Sprache wie den Inhalt:
-
-            ${pageContent}`;
-          
-          // Add the summarization request to the chat history
-          chatHistory.push({ role: 'user', content: 'Please summarize the content of this page.' });
-          
-          // We're now passing true for updateChatHistory
-          streamResponse(model, [...chatHistory, { role: 'user', content: prompt }], sender.tab.id, true);
-        });
-      });
-    } else {
-      chrome.tabs.sendMessage(sender.tab.id, {action: 'streamResponse', reply: 'Error: No active tab found.', done: true});
+function handleSummarizeContent(sender, tabId) {
+  chrome.tabs.sendMessage(sender.tab.id, {action: 'getPageContent'}, pageContent => {
+    if (chrome.runtime.lastError) {
+      console.error('Error getting page content:', chrome.runtime.lastError);
+      chrome.tabs.sendMessage(sender.tab.id, {action: 'streamResponse', reply: 'Error: Unable to access page content.', done: true});
+      return;
     }
+    
+    if (!pageContent) {
+      console.error('No page content received');
+      chrome.tabs.sendMessage(sender.tab.id, {action: 'streamResponse', reply: 'Error: No page content received.', done: true});
+      return;
+    }
+
+    console.log('Page content received, length:', pageContent.length);
+    
+    chrome.storage.sync.get('selectedModel', (data) => {
+      const model = data.selectedModel || 'llama3.2';
+      
+      const prompt = 
+        `USE MARKDOWN FORMAT FOR YOUR RESPONSE !!!
+        Summarize the following content in the same language as the content:
+
+        Resuma el siguiente contenido en el mismo idioma que el contenido:
+
+        Résumez le contenu suivant dans la même langue que le contenu:
+
+        Zusammenfassen Sie den folgenden Inhalt in derselben Sprache wie den Inhalt:
+
+        ${pageContent}`;
+      
+      getChatHistory(tabId, (history) => {
+        history.push({ role: 'user', content: 'Please summarize the content of this page.' });
+        saveChatHistory(tabId, history);
+        streamResponse(model, [...history, { role: 'user', content: prompt }], sender.tab.id, true);
+      });
+    });
   });
 }
 
@@ -98,8 +98,10 @@ function streamResponse(model, messages, tabId, updateChatHistory) {
             chrome.tabs.sendMessage(tabId, {action: 'streamResponse', reply: buffer, done: false});
           }
           if (updateChatHistory) {
-            // Always add the response to chat history now
-            chatHistory.push({ role: 'assistant', content: accumulatedResponse });
+            getChatHistory(tabId, (history) => {
+              history.push({ role: 'assistant', content: accumulatedResponse });
+              saveChatHistory(tabId, history);
+            });
           }
           chrome.tabs.sendMessage(tabId, {action: 'streamResponse', reply: '', done: true});
           
@@ -142,3 +144,27 @@ function streamResponse(model, messages, tabId, updateChatHistory) {
     chrome.tabs.sendMessage(tabId, {action: 'streamResponse', reply: 'Error: Unable to get a response from the API.', done: true});
   });
 }
+
+function getChatHistory(tabId, callback) {
+  chrome.storage.local.get(`chatHistory_${tabId}`, (result) => {
+    callback(result[`chatHistory_${tabId}`] || []);
+  });
+}
+
+function saveChatHistory(tabId, history) {
+  chrome.storage.local.set({ [`chatHistory_${tabId}`]: history });
+}
+
+function clearChatHistory(tabId) {
+  chrome.storage.local.remove(`chatHistory_${tabId}`);
+}
+
+// Clean up chat histories when tabs are closed
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+  clearChatHistory(tabId);
+  console.log(`Chat history for tab ${tabId} has been removed.`);
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({isExtensionActive: true});
+});
