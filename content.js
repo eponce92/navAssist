@@ -1,8 +1,8 @@
 let chatWindow = null;
 let isDragging = false;
 let isResizing = false;
-let dragOffset = { x: 0, y: 0 };
-let resizeOffset = { x: 0, y: 0 };
+let initialPos = { x: 0, y: 0 };
+let initialSize = { width: 0, height: 0 };
 
 function createChatWindow() {
   console.log('Creating chat window');
@@ -10,16 +10,18 @@ function createChatWindow() {
   chatWindow.id = 'chatWindow';
   chatWindow.innerHTML = `
     <div id="chatHeader">
-      Ollama Chat
+      <span>Ollama Chat</span>
       <button id="restartChat" title="Restart Chat">
-        <span class="restart-icon">🔄</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+        </svg>
       </button>
     </div>
     <div id="chatMessages"></div>
     <div id="chatInput">
       <textarea id="messageInput" placeholder="Type your message..." rows="1"></textarea>
       <button id="sendMessage">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"></line>
           <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
         </svg>
@@ -29,10 +31,11 @@ function createChatWindow() {
   `;
   document.body.appendChild(chatWindow);
 
-  // Set initial position with offset
-  const initialRight = 40; // Increased from 20
-  const initialTop = 60;   // Increased from 20
-  chatWindow.style.right = `${initialRight}px`;
+  // Set initial position
+  const initialRight = 40;
+  const initialTop = 60;
+  const windowWidth = window.innerWidth;
+  chatWindow.style.left = `${windowWidth - 350 - initialRight}px`; // 350 is the width of the chat window
   chatWindow.style.top = `${initialTop}px`;
 
   const chatHeader = chatWindow.querySelector('#chatHeader');
@@ -57,48 +60,44 @@ function createChatWindow() {
 
 function handleMouseMove(e) {
   if (isDragging) {
-    const newX = e.clientX - dragOffset.x;
-    const newY = e.clientY - dragOffset.y;
-    
-    // Update this part
-    chatWindow.style.left = `${newX}px`;
-    chatWindow.style.top = `${newY}px`;
-    
-    // Remove this line
-    // chatWindow.style.right = 'auto';
+    const dx = e.clientX - initialPos.x;
+    const dy = e.clientY - initialPos.y;
+    const newLeft = chatWindow.offsetLeft + dx;
+    const newTop = chatWindow.offsetTop + dy;
+    chatWindow.style.left = `${newLeft}px`;
+    chatWindow.style.top = `${newTop}px`;
+    initialPos = { x: e.clientX, y: e.clientY };
   } else if (isResizing) {
-    const rect = chatWindow.getBoundingClientRect();
-    const newWidth = e.clientX - rect.left;
-    const newHeight = e.clientY - rect.top;
-    chatWindow.style.width = `${Math.max(300, newWidth)}px`;
-    chatWindow.style.height = `${Math.max(400, newHeight)}px`;
+    const dx = e.clientX - initialPos.x;
+    const dy = e.clientY - initialPos.y;
+    const newWidth = Math.max(300, initialSize.width + dx);
+    const newHeight = Math.max(400, initialSize.height + dy);
+    chatWindow.style.width = `${newWidth}px`;
+    chatWindow.style.height = `${newHeight}px`;
   }
 }
 
 function handleMouseUp() {
   isDragging = false;
   isResizing = false;
+  document.body.style.userSelect = '';
 }
 
 function startDragging(e) {
-  if (e.target !== e.currentTarget) return; // Prevent dragging when clicking buttons
+  if (e.target !== e.currentTarget) return;
   isDragging = true;
-  const rect = chatWindow.getBoundingClientRect();
-  dragOffset = {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top
-  };
+  initialPos = { x: e.clientX, y: e.clientY };
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
 }
 
 function startResizing(e) {
   isResizing = true;
   const rect = chatWindow.getBoundingClientRect();
-  resizeOffset = {
-    x: rect.width - (e.clientX - rect.left),
-    y: rect.height - (e.clientY - rect.top)
-  };
+  initialPos = { x: e.clientX, y: e.clientY };
+  initialSize = { width: rect.width, height: rect.height };
+  document.body.style.userSelect = 'none';
   e.preventDefault();
-  e.stopPropagation();
 }
 
 function handleKeyDown(e) {

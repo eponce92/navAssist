@@ -2,9 +2,40 @@
 <html>
 <head>
   <title>Ollama Chat</title>
-  <link rel="stylesheet" type="text/css" href="styles.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 300px;
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    h1 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #3498db;
+    }
+    select, button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+  </style>
 </head>
 <body>
+  <h1>Ollama Chat</h1>
   <select id="modelSelect">
     <option value="llama3.2">llama3.2</option>
     <option value="qwen2.5:14b">qwen2.5:14b</option>
