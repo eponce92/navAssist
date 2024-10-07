@@ -3,7 +3,7 @@
   "name": "Ollama Chat Extension",
   "version": "1.0",
   "description": "Chat with various Ollama models",
-  "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage", "tabs"],
   "action": {
     "default_popup": "popup.html"
   },

@@ -58,7 +58,12 @@
 }
 
 #restartChat:hover {
-  transform: rotate(180deg);
+  transform: scale(1.1);
+}
+
+#restartChat svg {
+  width: 18px;
+  height: 18px;
 }
 
 #chatMessages {
@@ -121,6 +126,7 @@
   border-radius: 18px;
   font-size: 14px;
   line-height: 1.4;
+  position: relative;
 }
 
 .user-message {
@@ -133,6 +139,7 @@
   align-self: flex-start;
   background-color: var(--message-bg-assistant);
   color: var(--text-color);
+  padding-right: 30px;
 }
 
 #resizeHandle {
@@ -157,4 +164,171 @@
 #chatMessages::-webkit-scrollbar-thumb {
   background-color: var(--primary-color);
   border-radius: 3px;
+}
+
+/* Add these styles at the end of the file */
+
+.copy-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.message:hover .copy-button {
+  opacity: 1;
+}
+
+.copy-button:hover {
+  background-color: var(--border-color);
+}
+
+.copy-button svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-color);
+}
+
+.copy-button.copied {
+  background-color: var(--primary-color);
+}
+
+.copy-button.copied svg {
+  color: white;
+}
+
+/* Add these styles for the new button */
+.chat-controls {
+  display: flex;
+  align-items: center;
+}
+
+#summarizeContent,
+#restartChat {
+  background-color: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 5px;
+  margin-left: 5px;
+  transition: transform 0.2s ease;
+}
+
+#summarizeContent:hover,
+#restartChat:hover {
+  transform: scale(1.1);
+}
+
+#summarizeContent svg,
+#restartChat svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* Adjust the existing styles for #restartChat to match */
+#restartChat {
+  background-color: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 5px;
+  transition: transform 0.2s ease;
+}
+
+#restartChat:hover {
+  transform: scale(1.1);
+}
+
+#restartChat svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Add some space between the title and the buttons */
+#chatHeader span {
+  margin-right: auto;
+}
+
+/* Add these styles at the end of the file */
+
+#chatWindow.sidebar-mode {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 300px;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: -2px 0 10px var(--shadow-color);
+}
+
+#chatWindow.popup-mode {
+  border-radius: 12px;
+  box-shadow: 0 8px 16px var(--shadow-color);
+}
+
+.sidebar-mode #resizeHandle {
+  display: none;
+}
+
+#toggleSidebar {
+  background-color: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 5px;
+  margin-right: 5px;
+  transition: transform 0.2s ease;
+}
+
+#toggleSidebar:hover {
+  transform: scale(1.1);
+}
+
+#toggleSidebar svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* Adjust the body margin when in sidebar mode */
+body.sidebar-active {
+  margin-right: 300px;
+  transition: margin-right 0.3s ease;
+}
+
+/* Add these styles for the sidebar resize handle */
+#sidebarResizeHandle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: ew-resize;
+  background-color: transparent;
+}
+
+#chatWindow.sidebar-mode #sidebarResizeHandle {
+  display: block;
+}
+
+#chatWindow.popup-mode #sidebarResizeHandle {
+  display: none;
+}
+
+/* Modify the existing styles for the chat window */
+#chatWindow {
+  transition: width 0.3s ease, height 0.3s ease, top 0.3s ease, right 0.3s ease, left 0.3s ease, bottom 0.3s ease;
+}
+
+/* Adjust the body margin transition */
+body {
+  transition: margin-right 0.3s ease;
 }
