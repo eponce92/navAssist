@@ -245,17 +245,21 @@ function markdownToHtml(markdown) {
     // Italic text
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     // Code blocks
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, lang, code) {
+      return `<pre><code class="language-${lang || ''}">${code.trim()}</code></pre>`;
+    })
     // Inline code
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     // Unordered lists
-    .replace(/^\s*[\*\-\+] (.+)/gm, '<li>$1</li>')
+    .replace(/^\s*[-*+] (.+)/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)\s+(?=<li>)/g, '$1</ul><ul>')
     .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-    // Ordered lists
-    .replace(/^\s*(\d+)\. (.+)/gm, '<li>$2</li>')
-    .replace(/(<li>.*<\/li>)\s+(?=<li>)/g, '$1</ol><ol>')
-    .replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>')
+    // Ordered lists - remove this section or modify it to handle specific cases
+    // .replace(/^\s*(\d+)\. (.+)/gm, '<li>$2</li>')
+    // .replace(/(<li>.*<\/li>)\s+(?=<li>)/g, '$1</ol><ol>')
+    // .replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
     // Line breaks
     .replace(/\n/g, '<br>');
 }
@@ -279,6 +283,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else {
       createChatWindow();
     }
+  }
+  // Add this to your existing chrome.runtime.onMessage listener
+  if (request.action === 'logFinalResponse') {
+    console.log('Final response from model:', request.response);
   }
 });
 

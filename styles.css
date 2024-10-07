@@ -354,37 +354,54 @@ body.transitioning {
   border-radius: 4px;
   padding: 10px;
   overflow-x: auto;
+  margin: 10px 0;
 }
 
 .message-content code {
   font-family: 'Courier New', Courier, monospace;
   font-size: 0.9em;
+  background-color: #f4f4f4;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.message-content h3 {
+  font-size: 1.2em;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  color: #2c3e50;
 }
 
 .message-content ul, .message-content ol {
-  padding-left: 30px;
+  padding-left: 20px;
   margin: 10px 0;
 }
 
 .message-content li {
   margin-bottom: 5px;
-  list-style-position: outside;
 }
 
-.message-content ul li {
-  list-style-type: disc;
+.message-content a {
+  color: #3498db;
+  text-decoration: none;
 }
 
-.message-content ol li {
-  list-style-type: decimal;
+.message-content a:hover {
+  text-decoration: underline;
 }
 
 /* Dark mode styles */
-[data-theme="dark"] .message-content pre {
+[data-theme="dark"] .message-content pre,
+[data-theme="dark"] .message-content code {
   background-color: #2d2d2d;
   border-color: #444;
+  color: #e6e6e6;
 }
 
-[data-theme="dark"] .message-content code {
-  color: #e6e6e6;
+[data-theme="dark"] .message-content h3 {
+  color: #ecf0f1;
+}
+
+[data-theme="dark"] .message-content a {
+  color: #5dade2;
 }

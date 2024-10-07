@@ -47,8 +47,7 @@ function handleSummarizeContent(sender) {
           const model = data.selectedModel || 'llama3.2';
           
           const prompt = 
-            `
-            USE MARKDOWN FORMAT FOR YOUR RESPONSE !!!
+            `USE MARKDOWN FORMAT FOR YOUR RESPONSE !!!
             Summarize the following content in the same language as the content:
 
             Resuma el siguiente contenido en el mismo idioma que el contenido:
@@ -57,13 +56,13 @@ function handleSummarizeContent(sender) {
 
             Zusammenfassen Sie den folgenden Inhalt in derselben Sprache wie den Inhalt:
 
-            ${pageContent}         
-
-            `;
+            ${pageContent}`;
           
-          // We're not adding the summarization request to the visible chat history anymore
-          // Instead, we're directly sending the prompt to the API
-          streamResponse(model, [{ role: 'user', content: prompt }], sender.tab.id, false);
+          // Add the summarization request to the chat history
+          chatHistory.push({ role: 'user', content: 'Please summarize the content of this page.' });
+          
+          // We're now passing true for updateChatHistory
+          streamResponse(model, [...chatHistory, { role: 'user', content: prompt }], sender.tab.id, true);
         });
       });
     } else {
@@ -73,6 +72,7 @@ function handleSummarizeContent(sender) {
 }
 
 function streamResponse(model, messages, tabId, updateChatHistory) {
+  console.log('Starting streamResponse');
   fetch('http://localhost:11434/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -85,6 +85,7 @@ function streamResponse(model, messages, tabId, updateChatHistory) {
     })
   })
   .then(response => {
+    console.log('Received response from API');
     const reader = response.body.getReader();
     let accumulatedResponse = '';
     let buffer = '';
@@ -92,13 +93,19 @@ function streamResponse(model, messages, tabId, updateChatHistory) {
     function readStream() {
       reader.read().then(({ done, value }) => {
         if (done) {
+          console.log('Stream completed');
           if (buffer) {
             chrome.tabs.sendMessage(tabId, {action: 'streamResponse', reply: buffer, done: false});
           }
           if (updateChatHistory) {
+            // Always add the response to chat history now
             chatHistory.push({ role: 'assistant', content: accumulatedResponse });
           }
           chrome.tabs.sendMessage(tabId, {action: 'streamResponse', reply: '', done: true});
+          
+          console.log('Final raw response:', accumulatedResponse);
+          chrome.tabs.sendMessage(tabId, {action: 'logFinalResponse', response: accumulatedResponse});
+          
           return;
         }
 
