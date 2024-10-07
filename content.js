@@ -56,6 +56,14 @@ function createChatWindow() {
 
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
+
+  // Apply theme
+  applyTheme();
+}
+
+function applyTheme() {
+  const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  chatWindow.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
 }
 
 function handleMouseMove(e) {
@@ -165,6 +173,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else {
       createChatWindow();
     }
+  }
+});
+
+// Listen for changes in color scheme
+window.matchMedia('(prefers-color-scheme: dark)').addListener(() => {
+  if (chatWindow) {
+    applyTheme();
   }
 });
 

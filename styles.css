@@ -1,9 +1,21 @@
 :root {
   --primary-color: #3498db;
-  --background-color: #f8f9fa;
-  --text-color: #333;
+  --background-color: #ffffff;
+  --text-color: #333333;
   --border-color: #e0e0e0;
   --shadow-color: rgba(0, 0, 0, 0.1);
+  --message-bg-user: #e1f0ff;
+  --message-bg-assistant: #f0f0f0;
+}
+
+[data-theme="dark"] {
+  --primary-color: #4a90e2;
+  --background-color: #202124;
+  --text-color: #e8eaed;
+  --border-color: #5f6368;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --message-bg-user: #174ea6;
+  --message-bg-assistant: #303134;
 }
 
 #chatWindow {
@@ -19,7 +31,7 @@
   flex-direction: column;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
-  /* Remove the transition property */
+  color: var(--text-color);
 }
 
 #chatHeader {
@@ -61,7 +73,7 @@
 #chatInput {
   display: flex;
   padding: 15px;
-  background-color: white;
+  background-color: var(--background-color);
   border-top: 1px solid var(--border-color);
 }
 
@@ -75,6 +87,8 @@
   max-height: 100px;
   overflow-y: auto;
   transition: border-color 0.3s ease;
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 #messageInput:focus {
@@ -98,7 +112,7 @@
 }
 
 #sendMessage:hover {
-  background-color: #2980b9;
+  filter: brightness(1.1);
 }
 
 .message {
@@ -111,13 +125,13 @@
 
 .user-message {
   align-self: flex-end;
-  background-color: var(--primary-color);
-  color: white;
+  background-color: var(--message-bg-user);
+  color: var(--text-color);
 }
 
 .assistant-message {
   align-self: flex-start;
-  background-color: #e9ecef;
+  background-color: var(--message-bg-assistant);
   color: var(--text-color);
 }
 
