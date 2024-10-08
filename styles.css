@@ -513,3 +513,27 @@ body.transitioning {
   width: 16px;
   height: 16px;
 }
+
+/* Add these styles at the end of the file */
+
+#navAssistFloatingBar {
+  display: flex;
+  gap: 5px;
+}
+
+#navAssistFloatingBar button {
+  background-color: var(--primary-color);
+  border: none;
+  border-radius: 4px;
+  padding: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#navAssistFloatingBar button:hover {
+  background-color: var(--primary-color-hover);
+}
+
+#navAssistFloatingBar svg {
+  display: block;
+}

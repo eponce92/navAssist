@@ -16,6 +16,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'getChatHistory') {
     getChatHistory(tabId, sendResponse);
     return true;
+  } else if (request.action === 'fixGrammar') {
+    handleFixGrammar(request.prompt, sender.tab.id, sendResponse);
+    return true; // Indicates that the response will be sent asynchronously
   }
 });
 
@@ -168,3 +171,33 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({isExtensionActive: true});
 });
+
+// Add this new function to handle the grammar fixing
+function handleFixGrammar(prompt, tabId, sendResponse) {
+  chrome.storage.sync.get('selectedModel', (data) => {
+    const model = data.selectedModel || 'llama3.2';
+    
+    fetch('http://localhost:11434/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: prompt }],
+        stream: false
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('API response:', data);
+      const fixedText = data.choices[0].message.content.trim();
+      console.log('Fixed text:', fixedText);
+      sendResponse({ fixedText: fixedText });
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      sendResponse({ error: 'Failed to fix grammar' });
+    });
+  });
+}

@@ -11,6 +11,7 @@ let isExtensionActive = true;
 let floatingBar = null;
 let selectedText = '';
 let selectionTimeout = null;
+let lastSelection = null;
 
 const isGmail = window.location.hostname === 'mail.google.com';
 
@@ -600,11 +601,21 @@ function createFloatingBar() {
         <line x1="12" y1="3" x2="12" y2="15"></line>
       </svg>
     </button>
+    <button id="fixGrammar" title="Fix Grammar">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 7V4h16v3"></path>
+        <path d="M9 20h6"></path>
+        <path d="M12 4v16"></path>
+      </svg>
+    </button>
   `;
   document.body.appendChild(floatingBar);
 
   const transferButton = floatingBar.querySelector('#transferToChat');
   transferButton.addEventListener('click', transferSelectedTextToChat);
+
+  const fixGrammarButton = floatingBar.querySelector('#fixGrammar');
+  fixGrammarButton.addEventListener('click', fixGrammar);
 }
 
 // Add this function to show the floating bar
@@ -637,7 +648,94 @@ function transferSelectedTextToChat() {
   }
 }
 
-// Modify the existing document.addEventListener('mouseup', ...) function
+// Add this new function to handle grammar fixing
+function fixGrammar() {
+  console.log('Fixing grammar for:', selectedText);
+  if (selectedText && lastSelection) {
+    const prompt = `Fix this text grammar, don't change tone or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text:\n\n${selectedText}`;
+    
+    // Show loading indicator
+    showLoadingIndicator();
+
+    chrome.runtime.sendMessage({action: 'fixGrammar', prompt: prompt}, (response) => {
+      // Hide loading indicator
+      hideLoadingIndicator();
+
+      if (response && response.fixedText) {
+        console.log('Received fixed text:', response.fixedText);
+        const success = replaceSelectedText(response.fixedText, lastSelection);
+        if (success) {
+          showNotification('Grammar fixed successfully!', 'success');
+        } else {
+          showNotification('Failed to replace text. Please try again.', 'error');
+        }
+      } else {
+        console.error('Failed to fix grammar');
+        showNotification('Failed to fix grammar. Please try again.', 'error');
+      }
+    });
+
+    hideFloatingBar();
+  } else {
+    console.error('No valid selection found');
+    showNotification('No valid selection found. Please try again.', 'error');
+  }
+}
+
+// Modify the replaceSelectedText function
+function replaceSelectedText(newText, storedRange) {
+  console.log('Attempting to replace text:', newText);
+  
+  try {
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(storedRange);
+    
+    const range = selection.getRangeAt(0);
+    const activeElement = document.activeElement;
+
+    console.log('Active element:', activeElement.tagName, activeElement.id, activeElement.className);
+
+    if (activeElement.isContentEditable || 
+        (activeElement.tagName === 'TEXTAREA') || 
+        (activeElement.tagName === 'INPUT' && activeElement.type === 'text')) {
+      // If the selection is within an editable field
+      if (activeElement.isContentEditable) {
+        range.deleteContents();
+        range.insertNode(document.createTextNode(newText));
+      } else {
+        const start = activeElement.selectionStart;
+        const end = activeElement.selectionEnd;
+        const text = activeElement.value;
+        activeElement.value = text.slice(0, start) + newText + text.slice(end);
+        activeElement.setSelectionRange(start + newText.length, start + newText.length);
+      }
+    } else {
+      // If the selection is in a non-editable area
+      range.deleteContents();
+      range.insertNode(document.createTextNode(newText));
+    }
+    console.log('Text replaced successfully');
+    return true;
+  } catch (error) {
+    console.error('Error replacing text:', error);
+    return false;
+  }
+}
+
+// Add this function to get the current selection
+function getCurrentSelection() {
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    console.log('Current selection:', range.toString());
+    console.log('Selection parent element:', range.commonAncestorContainer.tagName);
+  } else {
+    console.log('No current selection');
+  }
+}
+
+// Modify the document.addEventListener('mouseup', ...) function
 document.addEventListener('mouseup', (e) => {
   if (!isExtensionActive) return;
 
@@ -652,20 +750,34 @@ document.addEventListener('mouseup', (e) => {
     selectedText = selection.toString().trim();
 
     console.log('Selected text:', selectedText);
+    getCurrentSelection();
 
     if (selectedText) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
+      lastSelection = selection.getRangeAt(0).cloneRange();
+      const rect = lastSelection.getBoundingClientRect();
       showFloatingBar(rect.left + window.scrollX, rect.bottom + window.scrollY);
-    } else {
+    } else if (isFloatingBarVisible()) {
       hideFloatingBar();
     }
   }, 10);
 });
 
-// Add this event listener to hide the floating bar when clicking outside
-document.addEventListener('mousedown', (e) => {
-  if (floatingBar && !floatingBar.contains(e.target)) {
-    hideFloatingBar();
-  }
-});
+function showLoadingIndicator() {
+  console.log('Showing loading indicator');
+  // Implement a loading indicator, e.g., a spinner or progress bar
+}
+
+function hideLoadingIndicator() {
+  console.log('Hiding loading indicator');
+  // Hide the loading indicator
+}
+
+function showNotification(message, type) {
+  console.log(`${type.toUpperCase()}: ${message}`);
+  // Implement a notification system, e.g., a toast message
+}
+
+// Add this function to check if the floating bar is visible
+function isFloatingBarVisible() {
+  return floatingBar && floatingBar.style.display !== 'none';
+}
