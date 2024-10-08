@@ -21,10 +21,32 @@
 
 ## 🚀 Getting Started
 
-1. Click the navAssist icon in your Chrome toolbar to open the popup.
-2. Select your preferred AI model from the dropdown menu.
-3. Toggle the switch to enable navAssist.
-4. Start chatting with your AI assistant on any web page!
+1. Set the `OLLAMA_ORIGINS` environment variable to allow connections from Chrome extensions:
+
+   - On Windows:
+     - Open Command Prompt or PowerShell as administrator
+     - Run the following command:
+       ```
+       setx OLLAMA_ORIGINS "chrome-extension://*"
+       ```
+     - Restart your computer for the changes to take effect
+   - On macOS/Linux:
+     - Add the following line to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`):
+       ```
+       export OLLAMA_ORIGINS="chrome-extension://*"
+       ```
+     - Restart your terminal or run `source ~/.bashrc` (or the appropriate config file)
+
+2. Start the Ollama server:
+
+   ```
+   ollama serve
+   ```
+
+3. Click the navAssist icon in your Chrome toolbar to open the popup.
+4. Select your preferred AI model from the dropdown menu.
+5. Toggle the switch to enable navAssist.
+6. Start chatting with your AI assistant on any web page!
 
 ## 💡 Usage Tips
 

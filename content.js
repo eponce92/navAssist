@@ -10,6 +10,9 @@ let isChatVisible = true;
 let isExtensionActive = true;
 let floatingBar = null;
 let selectedText = '';
+let selectionTimeout = null;
+
+const isGmail = window.location.hostname === 'mail.google.com';
 
 function createChatWindow() {
   console.log('Creating navAssist window');
@@ -575,8 +578,18 @@ function loadChatHistory() {
   });
 }
 
+// Use this check before performing operations that might interfere with Gmail
+if (isGmail) {
+  // Handle Gmail-specific behavior
+} else {
+  // Regular behavior
+}
+
 // Add this function to create the floating bar
 function createFloatingBar() {
+  if (floatingBar) return; // Ensure we only create it once
+  
+  console.log('Creating floating bar');
   floatingBar = document.createElement('div');
   floatingBar.id = 'navAssistFloatingBar';
   floatingBar.innerHTML = `
@@ -599,6 +612,7 @@ function showFloatingBar(x, y) {
   if (!floatingBar) {
     createFloatingBar();
   }
+  console.log('Showing floating bar at', x, y);
   floatingBar.style.left = `${x}px`;
   floatingBar.style.top = `${y}px`;
   floatingBar.style.display = 'block';
@@ -607,12 +621,14 @@ function showFloatingBar(x, y) {
 // Add this function to hide the floating bar
 function hideFloatingBar() {
   if (floatingBar) {
+    console.log('Hiding floating bar');
     floatingBar.style.display = 'none';
   }
 }
 
 // Add this function to transfer selected text to chat
 function transferSelectedTextToChat() {
+  console.log('Transferring selected text to chat:', selectedText);
   if (selectedText && chatWindow) {
     const messageInput = chatWindow.querySelector('#messageInput');
     messageInput.value = selectedText;
@@ -625,16 +641,26 @@ function transferSelectedTextToChat() {
 document.addEventListener('mouseup', (e) => {
   if (!isExtensionActive) return;
 
-  const selection = window.getSelection();
-  selectedText = selection.toString().trim();
-
-  if (selectedText) {
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    showFloatingBar(rect.left + window.scrollX, rect.bottom + window.scrollY);
-  } else {
-    hideFloatingBar();
+  // Clear any existing timeout
+  if (selectionTimeout) {
+    clearTimeout(selectionTimeout);
   }
+
+  // Set a small timeout to allow for the selection to be properly set
+  selectionTimeout = setTimeout(() => {
+    const selection = window.getSelection();
+    selectedText = selection.toString().trim();
+
+    console.log('Selected text:', selectedText);
+
+    if (selectedText) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      showFloatingBar(rect.left + window.scrollX, rect.bottom + window.scrollY);
+    } else {
+      hideFloatingBar();
+    }
+  }, 10);
 });
 
 // Add this event listener to hide the floating bar when clicking outside

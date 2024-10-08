@@ -498,7 +498,7 @@ body.transitioning {
   border: none;
   color: white;
   cursor: pointer;
-  padding: 2px;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
