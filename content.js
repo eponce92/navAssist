@@ -586,7 +586,7 @@ if (isGmail) {
   // Regular behavior
 }
 
-// Add this function to create the floating bar
+// Update the createFloatingBar function
 function createFloatingBar() {
   if (floatingBar) return; // Ensure we only create it once
   
@@ -595,14 +595,14 @@ function createFloatingBar() {
   floatingBar.id = 'navAssistFloatingBar';
   floatingBar.innerHTML = `
     <button id="transferToChat" title="Transfer to Chat">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="17 8 12 3 7 8"></polyline>
         <line x1="12" y1="3" x2="12" y2="15"></line>
       </svg>
     </button>
     <button id="fixGrammar" title="Fix Grammar">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 7V4h16v3"></path>
         <path d="M9 20h6"></path>
         <path d="M12 4v16"></path>
@@ -616,26 +616,124 @@ function createFloatingBar() {
 
   const fixGrammarButton = floatingBar.querySelector('#fixGrammar');
   fixGrammarButton.addEventListener('click', fixGrammar);
+
+  // Add event listeners for tooltips
+  addTooltipListeners(transferButton, 'Transfer to Chat');
+  addTooltipListeners(fixGrammarButton, 'Fix Grammar');
 }
 
-// Add this function to show the floating bar
+// Add this function to handle tooltips
+function addTooltipListeners(element, tooltipText) {
+  element.addEventListener('mouseenter', (e) => showTooltip(e, tooltipText));
+  element.addEventListener('mouseleave', hideTooltip);
+}
+
+// Add these functions to show and hide tooltips
+function showTooltip(event, text) {
+  const tooltip = document.createElement('div');
+  tooltip.id = 'navAssistFloatingBarTooltip';
+  tooltip.textContent = text;
+  document.body.appendChild(tooltip);
+
+  const rect = event.target.getBoundingClientRect();
+  tooltip.style.left = `${rect.left + rect.width / 2 - tooltip.offsetWidth / 2}px`;
+  tooltip.style.top = `${rect.bottom + 5}px`;
+
+  setTimeout(() => {
+    tooltip.style.opacity = '1';
+  }, 10);
+}
+
+function hideTooltip() {
+  const tooltip = document.getElementById('navAssistFloatingBarTooltip');
+  if (tooltip) {
+    tooltip.style.opacity = '0';
+    setTimeout(() => {
+      tooltip.remove();
+    }, 200);
+  }
+}
+
+// Update the showFloatingBar function
 function showFloatingBar(x, y) {
   if (!floatingBar) {
     createFloatingBar();
   }
   console.log('Showing floating bar at', x, y);
+  
+  // Position the floating bar above the selected text
+  const barHeight = floatingBar.offsetHeight;
+  const offset = 50; // Increased offset to 30px
+  const viewportHeight = window.innerHeight;
+  
+  // Calculate the position
+  let top = y - barHeight - offset;
+  
+  // Ensure the bar doesn't go off-screen at the top
+  if (top < 0) {
+    top = offset;
+  }
+  
+  // Ensure the bar doesn't go off-screen at the bottom
+  if (top + barHeight > viewportHeight) {
+    top = viewportHeight - barHeight - offset;
+  }
+  
   floatingBar.style.left = `${x}px`;
-  floatingBar.style.top = `${y}px`;
-  floatingBar.style.display = 'block';
+  floatingBar.style.top = `${top}px`;
+  floatingBar.style.display = 'flex';
+  
+  // Add a fade-in effect
+  floatingBar.style.opacity = '0';
+  setTimeout(() => {
+    floatingBar.style.opacity = '1';
+  }, 10);
 }
 
-// Add this function to hide the floating bar
+// Update the hideFloatingBar function
 function hideFloatingBar() {
   if (floatingBar) {
     console.log('Hiding floating bar');
-    floatingBar.style.display = 'none';
+    floatingBar.style.opacity = '0';
+    setTimeout(() => {
+      floatingBar.style.display = 'none';
+    }, 300); // Match the transition duration in CSS
   }
 }
+
+// Update the document.addEventListener('mouseup', ...) function
+document.addEventListener('mouseup', (e) => {
+  if (!isExtensionActive) return;
+
+  // Clear any existing timeout
+  if (selectionTimeout) {
+    clearTimeout(selectionTimeout);
+  }
+
+  // Set a small timeout to allow for the selection to be properly set
+  selectionTimeout = setTimeout(() => {
+    const selection = window.getSelection();
+    selectedText = selection.toString().trim();
+
+    console.log('Selected text:', selectedText);
+    getCurrentSelection();
+
+    if (selectedText) {
+      lastSelection = selection.getRangeAt(0).cloneRange();
+      const rect = lastSelection.getBoundingClientRect();
+      showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
+    } else if (isFloatingBarVisible()) {
+      hideFloatingBar();
+    }
+  }, 10);
+});
+
+// Add this event listener to hide the floating bar when clicking outside
+document.addEventListener('mousedown', (e) => {
+  if (floatingBar && !floatingBar.contains(e.target) && e.target.id !== 'navAssistFloatingBarTooltip') {
+    hideFloatingBar();
+  }
+});
 
 // Add this function to transfer selected text to chat
 function transferSelectedTextToChat() {
@@ -734,33 +832,6 @@ function getCurrentSelection() {
     console.log('No current selection');
   }
 }
-
-// Modify the document.addEventListener('mouseup', ...) function
-document.addEventListener('mouseup', (e) => {
-  if (!isExtensionActive) return;
-
-  // Clear any existing timeout
-  if (selectionTimeout) {
-    clearTimeout(selectionTimeout);
-  }
-
-  // Set a small timeout to allow for the selection to be properly set
-  selectionTimeout = setTimeout(() => {
-    const selection = window.getSelection();
-    selectedText = selection.toString().trim();
-
-    console.log('Selected text:', selectedText);
-    getCurrentSelection();
-
-    if (selectedText) {
-      lastSelection = selection.getRangeAt(0).cloneRange();
-      const rect = lastSelection.getBoundingClientRect();
-      showFloatingBar(rect.left + window.scrollX, rect.bottom + window.scrollY);
-    } else if (isFloatingBarVisible()) {
-      hideFloatingBar();
-    }
-  }, 10);
-});
 
 function showLoadingIndicator() {
   console.log('Showing loading indicator');

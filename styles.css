@@ -487,10 +487,14 @@ body.transitioning {
   position: absolute;
   display: none;
   background-color: var(--primary-color);
-  border-radius: 4px;
-  padding: 4px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+  padding: 6px 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   z-index: 2147483646; /* One less than the chat window */
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  transition: opacity 0.3s ease;
 }
 
 #navAssistFloatingBar button {
@@ -503,37 +507,28 @@ body.transitioning {
   align-items: center;
   justify-content: center;
   transition: transform 0.2s ease;
+  border-radius: 50%;
 }
 
 #navAssistFloatingBar button:hover {
   transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 #navAssistFloatingBar svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
-/* Add these styles at the end of the file */
-
-#navAssistFloatingBar {
-  display: flex;
-  gap: 5px;
-}
-
-#navAssistFloatingBar button {
-  background-color: var(--primary-color);
-  border: none;
+/* Add a new style for the floating bar tooltip */
+#navAssistFloatingBarTooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
   border-radius: 4px;
-  padding: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-#navAssistFloatingBar button:hover {
-  background-color: var(--primary-color-hover);
-}
-
-#navAssistFloatingBar svg {
-  display: block;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
