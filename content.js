@@ -12,15 +12,16 @@ let floatingBar = null;
 let selectedText = '';
 let selectionTimeout = null;
 let lastSelection = null;
-
-const isGmail = window.location.hostname === 'mail.google.com';
-
-// Add these variables at the beginning of the file
 let predictionBar = null;
 let currentPrediction = '';
 let isTyping = false;
 let typingTimer = null;
 const TYPING_INTERVAL = 500; // ms
+let floatingBarShown = false;
+let showFloatingBarTimeout = null;
+let isFloatingBarVisible = false; // Keep only this declaration
+
+const isGmail = window.location.hostname === 'mail.google.com';
 
 function createChatWindow() {
   console.log('Creating navAssist window');
@@ -602,8 +603,6 @@ if (isGmail) {
 
 // Update the createFloatingBar function
 function createFloatingBar() {
-  if (floatingBar) return; // Ensure we only create it once
-  
   console.log('Creating floating bar');
   floatingBar = document.createElement('div');
   floatingBar.id = 'navAssistFloatingBar';
@@ -634,6 +633,8 @@ function createFloatingBar() {
   // Add event listeners for tooltips
   addTooltipListeners(transferButton, 'Transfer to Chat');
   addTooltipListeners(fixGrammarButton, 'Fix Grammar');
+
+  console.log('Floating bar created and added to the document');
 }
 
 // Add this function to handle tooltips
@@ -668,16 +669,22 @@ function hideTooltip() {
   }
 }
 
+// Rename the function
+function checkFloatingBarVisibility() {
+  return floatingBar && floatingBar.style.display !== 'none';
+}
+
 // Update the showFloatingBar function
 function showFloatingBar(x, y) {
+  console.log('showFloatingBar called with coordinates:', x, y);
   if (!floatingBar) {
+    console.log('Creating floating bar');
     createFloatingBar();
   }
-  console.log('Showing floating bar at', x, y);
   
   // Position the floating bar above the selected text
   const barHeight = floatingBar.offsetHeight;
-  const offset = 50; // Increased offset to 30px
+  const offset = 50;
   const viewportHeight = window.innerHeight;
   
   // Calculate the position
@@ -693,6 +700,7 @@ function showFloatingBar(x, y) {
     top = viewportHeight - barHeight - offset;
   }
   
+  console.log('Setting floating bar position:', { left: x, top: top });
   floatingBar.style.left = `${x}px`;
   floatingBar.style.top = `${top}px`;
   floatingBar.style.display = 'flex';
@@ -702,15 +710,19 @@ function showFloatingBar(x, y) {
   setTimeout(() => {
     floatingBar.style.opacity = '1';
   }, 10);
+
+  isFloatingBarVisible = true;
+  console.log('Floating bar should now be visible');
 }
 
 // Update the hideFloatingBar function
 function hideFloatingBar() {
-  if (floatingBar) {
+  if (floatingBar && isFloatingBarVisible) {
     console.log('Hiding floating bar');
     floatingBar.style.opacity = '0';
     setTimeout(() => {
       floatingBar.style.display = 'none';
+      isFloatingBarVisible = false;
     }, 300); // Match the transition duration in CSS
   }
 }
@@ -719,35 +731,52 @@ function hideFloatingBar() {
 document.addEventListener('mouseup', (e) => {
   if (!isExtensionActive) return;
 
+  console.log('mouseup event triggered');
+
   // Clear any existing timeout
-  if (selectionTimeout) {
-    clearTimeout(selectionTimeout);
+  if (showFloatingBarTimeout) {
+    clearTimeout(showFloatingBarTimeout);
   }
 
   // Set a small timeout to allow for the selection to be properly set
-  selectionTimeout = setTimeout(() => {
+  showFloatingBarTimeout = setTimeout(() => {
     const selection = window.getSelection();
     selectedText = selection.toString().trim();
 
     console.log('Selected text:', selectedText);
-    getCurrentSelection();
+    console.log('isFloatingBarVisible:', isFloatingBarVisible);
 
-    if (selectedText) {
+    if (selectedText && !isFloatingBarVisible) {
+      console.log('Showing floating bar');
       lastSelection = selection.getRangeAt(0).cloneRange();
       const rect = lastSelection.getBoundingClientRect();
       showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
-    } else {
+    } else if (!selectedText && isFloatingBarVisible) {
+      console.log('Hiding floating bar');
       hideFloatingBar();
+    } else {
+      console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', isFloatingBarVisible);
     }
 
     // Hide prediction bar when selecting text
     hidePredictionBar();
-  }, 10);
+  }, 100); // Increased delay to 100ms
 });
 
-// Add this event listener to hide the floating bar when clicking outside
+// Update the document.addEventListener('mousedown', ...) function
 document.addEventListener('mousedown', (e) => {
-  if (floatingBar && !floatingBar.contains(e.target) && e.target.id !== 'navAssistFloatingBarTooltip') {
+  if (isFloatingBarVisible && floatingBar && !floatingBar.contains(e.target) && e.target.id !== 'navAssistFloatingBarTooltip') {
+    console.log('Mousedown outside floating bar, hiding it');
+    hideFloatingBar();
+  }
+});
+
+// Add a new event listener for 'selectionchange'
+document.addEventListener('selectionchange', () => {
+  if (!isExtensionActive) return;
+
+  const selection = window.getSelection();
+  if (selection.toString().trim() === '') {
     hideFloatingBar();
   }
 });
@@ -767,7 +796,7 @@ function transferSelectedTextToChat() {
 function fixGrammar() {
   console.log('Fixing grammar for:', selectedText);
   if (selectedText && lastSelection) {
-    const prompt = `Fix this text grammar, don't change tone or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the format and style of the original text, including line breaks and spaces:\n\n${selectedText}`;
+    const prompt = `Fix this text grammar, don't change tone or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the line breaks and spaces of the original text:\n\n${selectedText}`;
     
     // Show loading indicator
     showLoadingIndicator();
@@ -863,11 +892,6 @@ function hideLoadingIndicator() {
 function showNotification(message, type) {
   console.log(`${type.toUpperCase()}: ${message}`);
   // Implement a notification system, e.g., a toast message
-}
-
-// Add this function to check if the floating bar is visible
-function isFloatingBarVisible() {
-  return floatingBar && floatingBar.style.display !== 'none';
 }
 
 // Add this function to create and show the prediction bar
