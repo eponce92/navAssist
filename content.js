@@ -15,6 +15,13 @@ let lastSelection = null;
 
 const isGmail = window.location.hostname === 'mail.google.com';
 
+// Add these variables at the beginning of the file
+let predictionBar = null;
+let currentPrediction = '';
+let isTyping = false;
+let typingTimer = null;
+const TYPING_INTERVAL = 500; // ms
+
 function createChatWindow() {
   console.log('Creating navAssist window');
   chatWindow = document.createElement('div');
@@ -514,8 +521,15 @@ function updateChatWindowVisibility() {
       }
       showChatToggle();
     }
+    // Create prediction bar when extension is active
+    createPredictionBar();
   } else {
     removeChatWindow();
+    // Remove prediction bar when extension is inactive
+    if (predictionBar) {
+      predictionBar.remove();
+      predictionBar = null;
+    }
   }
 }
 
@@ -722,9 +736,12 @@ document.addEventListener('mouseup', (e) => {
       lastSelection = selection.getRangeAt(0).cloneRange();
       const rect = lastSelection.getBoundingClientRect();
       showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
-    } else if (isFloatingBarVisible()) {
+    } else {
       hideFloatingBar();
     }
+
+    // Hide prediction bar when selecting text
+    hidePredictionBar();
   }, 10);
 });
 
@@ -750,7 +767,7 @@ function transferSelectedTextToChat() {
 function fixGrammar() {
   console.log('Fixing grammar for:', selectedText);
   if (selectedText && lastSelection) {
-    const prompt = `Fix this text grammar, don't change tone or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text:\n\n${selectedText}`;
+    const prompt = `Fix this text grammar, don't change tone or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the format and style of the original text, including line breaks and spaces:\n\n${selectedText}`;
     
     // Show loading indicator
     showLoadingIndicator();
@@ -851,4 +868,193 @@ function showNotification(message, type) {
 // Add this function to check if the floating bar is visible
 function isFloatingBarVisible() {
   return floatingBar && floatingBar.style.display !== 'none';
+}
+
+// Add this function to create and show the prediction bar
+function createPredictionBar() {
+  if (predictionBar) return;
+
+  predictionBar = document.createElement('div');
+  predictionBar.id = 'navAssistPredictionBar';
+  predictionBar.style.cssText = `
+    position: absolute;
+    display: none;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 2147483646;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  `;
+  document.body.appendChild(predictionBar);
+}
+
+// Modify the showPredictionBar function
+function showPredictionBar(x, y, prediction) {
+  if (!predictionBar) {
+    createPredictionBar();
+  }
+
+  // Add the key hint to the prediction
+  const predictionWithHint = `${prediction} <span style="opacity: 0.7; font-size: 0.9em;">(Tab to accept)</span>`;
+
+  predictionBar.innerHTML = predictionWithHint;
+  
+  const offset = 50;
+  const viewportHeight = window.innerHeight;
+  let top = y - offset;
+  
+  if (top < 0) {
+    top = offset;
+  }
+  
+  if (top + predictionBar.offsetHeight > viewportHeight) {
+    top = viewportHeight - predictionBar.offsetHeight - offset;
+  }
+  
+  predictionBar.style.left = `${x}px`;
+  predictionBar.style.top = `${top}px`;
+  predictionBar.style.display = 'block';
+  
+  setTimeout(() => {
+    predictionBar.style.opacity = '1';
+  }, 10);
+}
+
+// Add this function to hide the prediction bar
+function hidePredictionBar() {
+  if (predictionBar) {
+    predictionBar.style.opacity = '0';
+    setTimeout(() => {
+      predictionBar.style.display = 'none';
+    }, 300);
+  }
+}
+
+// Add this function to get the text before the cursor
+function getTextBeforeCursor(element) {
+  if (element.isContentEditable) {
+    const selection = window.getSelection();
+    const range = selection.getRangeAt(0).cloneRange();
+    range.setStart(element, 0);
+    return range.toString();
+  } else {
+    return element.value.substring(0, element.selectionStart);
+  }
+}
+
+// Add this function to insert the prediction at the cursor position
+function insertPrediction(element) {
+  if (currentPrediction) {
+    if (element.isContentEditable) {
+      document.execCommand('insertText', false, currentPrediction);
+    } else {
+      const start = element.selectionStart;
+      const end = element.selectionEnd;
+      element.value = element.value.substring(0, start) + currentPrediction + element.value.substring(end);
+      element.selectionStart = element.selectionEnd = start + currentPrediction.length;
+    }
+    hidePredictionBar();
+    currentPrediction = '';
+  }
+}
+
+// Add this function to trigger the prediction
+function triggerPrediction(element) {
+  const textBeforeCursor = getTextBeforeCursor(element);
+  const prompt = `Given the following text, predict the next few words (max 5 words). Predict what the user is typing next, as if you were the user.
+Your job is to complete what the user will type next, not talk with him. You are predicting his next words, not asking him anything.
+He might be writing a message, an email, a comment, a review, a code, a document, etc. Only respond with the prediction, no explanation:
+
+${textBeforeCursor}`;
+
+  chrome.runtime.sendMessage({ action: 'getPrediction', prompt: prompt }, (response) => {
+    if (response && response.prediction) {
+      currentPrediction = response.prediction.trim();
+      const rect = element.getBoundingClientRect();
+      const cursorPos = getCursorPosition(element);
+      showPredictionBar(
+        rect.left + cursorPos.x + window.scrollX,
+        rect.top + cursorPos.y + window.scrollY,
+        currentPrediction
+      );
+    }
+  });
+}
+
+// Add this function to get the cursor position
+function getCursorPosition(element) {
+  if (element.isContentEditable) {
+    const selection = window.getSelection();
+    const range = selection.getRangeAt(0);
+    const clone = range.cloneRange();
+    clone.setStart(element, 0);
+    const rect = clone.getBoundingClientRect();
+    return { x: rect.right - element.getBoundingClientRect().left, y: rect.top - element.getBoundingClientRect().top };
+  } else {
+    const rect = element.getBoundingClientRect();
+    const text = element.value.substring(0, element.selectionStart);
+    const span = document.createElement('span');
+    span.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      white-space: pre-wrap;
+      font: ${getComputedStyle(element).font}`;
+    span.textContent = text;
+    document.body.appendChild(span);
+    const spanRect = span.getBoundingClientRect();
+    document.body.removeChild(span);
+    return { x: spanRect.width % rect.width, y: Math.floor(spanRect.width / rect.width) * parseFloat(getComputedStyle(element).lineHeight) };
+  }
+}
+
+// Add these event listeners for editable elements
+document.addEventListener('focusin', (e) => {
+  if (isEditableElement(e.target)) {
+    e.target.addEventListener('input', handleInput);
+    e.target.addEventListener('keydown', handleKeyDown);
+  }
+});
+
+document.addEventListener('focusout', (e) => {
+  if (isEditableElement(e.target)) {
+    e.target.removeEventListener('input', handleInput);
+    e.target.removeEventListener('keydown', handleKeyDown);
+    hidePredictionBar();
+  }
+});
+
+// Add this function to check if an element is editable
+function isEditableElement(element) {
+  return element.isContentEditable || element.tagName === 'TEXTAREA' || (element.tagName === 'INPUT' && element.type === 'text');
+}
+
+// Add this function to handle input events
+function handleInput(e) {
+  if (!isExtensionActive) return;
+
+  isTyping = true;
+  clearTimeout(typingTimer);
+
+  typingTimer = setTimeout(() => {
+    isTyping = false;
+    triggerPrediction(e.target);
+  }, TYPING_INTERVAL);
+}
+
+// Add this function to handle keydown events
+function handleKeyDown(e) {
+  if (!isExtensionActive) return;
+
+  if (e.key === 'Tab' && currentPrediction) {
+    e.preventDefault();
+    insertPrediction(e.target);
+  } else if (e.key === 'Escape') {
+    hidePredictionBar();
+  } else {
+    hidePredictionBar();
+  }
 }

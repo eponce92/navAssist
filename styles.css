@@ -532,3 +532,23 @@ body.transitioning {
   opacity: 0;
   transition: opacity 0.2s ease;
 }
+
+/* Add these styles at the end of the file */
+
+#navAssistPredictionBar {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#navAssistPredictionBar span {
+  margin-left: 10px;
+  white-space: nowrap;
+}

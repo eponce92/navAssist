@@ -19,6 +19,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'fixGrammar') {
     handleFixGrammar(request.prompt, sender.tab.id, sendResponse);
     return true; // Indicates that the response will be sent asynchronously
+  } else if (request.action === 'getPrediction') {
+    handleGetPrediction(request.prompt, sender.tab.id, sendResponse);
+    return true; // Indicates that the response will be sent asynchronously
   }
 });
 
@@ -198,6 +201,36 @@ function handleFixGrammar(prompt, tabId, sendResponse) {
     .catch(error => {
       console.error('Error:', error);
       sendResponse({ error: 'Failed to fix grammar' });
+    });
+  });
+}
+
+// Add this new function to handle the prediction request
+function handleGetPrediction(prompt, tabId, sendResponse) {
+  chrome.storage.sync.get('selectedModel', (data) => {
+    const model = data.selectedModel || 'llama3.2';
+    
+    fetch('http://localhost:11434/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: prompt }],
+        stream: false
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('API response:', data);
+      const prediction = data.choices[0].message.content.trim();
+      console.log('Prediction:', prediction);
+      sendResponse({ prediction: prediction });
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      sendResponse({ error: 'Failed to get prediction' });
     });
   });
 }
