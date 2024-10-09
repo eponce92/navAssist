@@ -923,7 +923,7 @@ function showPredictionBar(x, y, prediction) {
   }
 
   // Add the key hint to the prediction
-  const predictionWithHint = `${prediction} <span style="opacity: 0.7; font-size: 0.9em;">(Tab to accept)</span>`;
+  const predictionWithHint = `${prediction} <span style="opacity: 0.7; font-size: 0.9em;">(Shift+Tab to accept)</span>`;
 
   predictionBar.innerHTML = predictionWithHint;
   
@@ -958,16 +958,29 @@ function hidePredictionBar() {
   }
 }
 
-// Add this function to get the text before the cursor
+// Modify the getTextBeforeCursor function
 function getTextBeforeCursor(element) {
+  let text;
   if (element.isContentEditable) {
     const selection = window.getSelection();
     const range = selection.getRangeAt(0).cloneRange();
     range.setStart(element, 0);
-    return range.toString();
+    text = range.toString();
   } else {
-    return element.value.substring(0, element.selectionStart);
+    text = element.value.substring(0, element.selectionStart);
   }
+  
+  // Limit the text to the last 500 characters
+  const maxLength = 500;
+  if (text.length > maxLength) {
+    text = text.slice(-maxLength);
+  }
+  
+  // Log the captured text
+  console.log('Text before cursor (limited to 500 chars):', text);
+  console.log('Length of text before cursor:', text.length);
+  
+  return text;
 }
 
 // Add this function to insert the prediction at the cursor position
@@ -986,14 +999,30 @@ function insertPrediction(element) {
   }
 }
 
-// Add this function to trigger the prediction
+// Add this function to get the current webpage URL
+function getCurrentPageUrl() {
+  return window.location.href;
+}
+
+// Modify the triggerPrediction function
 function triggerPrediction(element) {
   const textBeforeCursor = getTextBeforeCursor(element);
-  const prompt = `Given the following text, predict the next few words (max 5 words). Predict what the user is typing next, as if you were the user.
-Your job is to complete what the user will type next, not talk with him. You are predicting his next words, not asking him anything.
-He might be writing a message, an email, a comment, a review, a code, a document, etc. Only respond with the prediction, no explanation:
+  const currentUrl = getCurrentPageUrl();
+  
+  const prompt = `Given the following context and text, predict the next few words (max 10 words). Predict what the user is typing next, as if you were the user.\
+  The prediction should not include any part of the current text, only new words are allowed. DONT INCLUDE ANYTHING ON YOUR RESPONSE OTHER THAN THE PREDICTION. NO COMMENTS OR CONVERSATION.
+  INCLUDE A SPACE BEFORE THE PREDICTION IF IT IS NOT THE FIRST WORD OF THE TEXT. DONT USE PERIODS IF ITS NOT THE END OF THE TEXT.
+  Example:
+  Current text: "Hello, my name is Ernesto and "
+  Prediction: " I was wondering if you could"
 
-${textBeforeCursor}`;
+  Current text: "We booked a table for"
+  Prediction: " 6 people at 8pm"
+
+  Current text: ${textBeforeCursor}
+  Prediction:
+  \
+`;
 
   chrome.runtime.sendMessage({ action: 'getPrediction', prompt: prompt }, (response) => {
     if (response && response.prediction) {
