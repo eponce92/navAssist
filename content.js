@@ -23,6 +23,9 @@ let isFloatingBarVisible = false; // Keep only this declaration
 
 const isGmail = window.location.hostname === 'mail.google.com';
 
+// Add this variable at the top of your file
+let jsonResponse = null;
+
 function createChatWindow() {
   console.log('Creating navAssist window');
   chatWindow = document.createElement('div');
@@ -964,7 +967,8 @@ function getTextBeforeCursor(element) {
   if (element.isContentEditable) {
     const selection = window.getSelection();
     const range = selection.getRangeAt(0).cloneRange();
-    range.setStart(element, 0);
+    range.selectNodeContents(element);
+    range.setEnd(range.endContainer, range.endOffset);
     text = range.toString();
   } else {
     text = element.value.substring(0, element.selectionStart);
@@ -985,17 +989,72 @@ function getTextBeforeCursor(element) {
 
 // Add this function to insert the prediction at the cursor position
 function insertPrediction(element) {
-  if (currentPrediction) {
+  if (jsonResponse) {
+    const incompleteSentence = jsonResponse.incomplete_sentence;
+    const completeSentence = jsonResponse.complete_sentence;
+    
     if (element.isContentEditable) {
-      document.execCommand('insertText', false, currentPrediction);
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(element);
+      preCaretRange.setEnd(range.endContainer, range.endOffset);
+      let textBeforeCursor = preCaretRange.toString();
+      
+      // Find the last occurrence of the incomplete sentence
+      const lastIndex = textBeforeCursor.lastIndexOf(incompleteSentence);
+      if (lastIndex !== -1) {
+        const beforeIncomplete = textBeforeCursor.substring(0, lastIndex);
+        const afterIncomplete = textBeforeCursor.substring(lastIndex + incompleteSentence.length);
+        
+        // Determine what to insert
+        let insertText = completeSentence.substring(incompleteSentence.length);
+        
+        // Check if we need to add a space
+        const isEndOfWord = incompleteSentence.endsWith(' ') || completeSentence.charAt(incompleteSentence.length) === ' ';
+        if (isEndOfWord && !insertText.startsWith(' ')) {
+          insertText = ' ' + insertText;
+        }
+        
+        element.innerHTML = beforeIncomplete + incompleteSentence + insertText + afterIncomplete + element.innerHTML.substring(preCaretRange.endOffset);
+        
+        // Set cursor to the end of the inserted text
+        const newCursorPosition = beforeIncomplete.length + incompleteSentence.length + insertText.length;
+        const newRange = document.createRange();
+        newRange.setStart(element.firstChild, newCursorPosition);
+        newRange.setEnd(element.firstChild, newCursorPosition);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
     } else {
       const start = element.selectionStart;
-      const end = element.selectionEnd;
-      element.value = element.value.substring(0, start) + currentPrediction + element.value.substring(end);
-      element.selectionStart = element.selectionEnd = start + currentPrediction.length;
+      const textBeforeCursor = element.value.substring(0, start);
+      
+      // Find the last occurrence of the incomplete sentence
+      const lastIndex = textBeforeCursor.lastIndexOf(incompleteSentence);
+      if (lastIndex !== -1) {
+        const beforeIncomplete = textBeforeCursor.substring(0, lastIndex);
+        const afterIncomplete = textBeforeCursor.substring(lastIndex + incompleteSentence.length);
+        
+        // Determine what to insert
+        let insertText = completeSentence.substring(incompleteSentence.length);
+        
+        // Check if we need to add a space
+        const isEndOfWord = incompleteSentence.endsWith(' ') || completeSentence.charAt(incompleteSentence.length) === ' ';
+        if (isEndOfWord && !insertText.startsWith(' ')) {
+          insertText = ' ' + insertText;
+        }
+        
+        element.value = beforeIncomplete + incompleteSentence + insertText + afterIncomplete + element.value.substring(start);
+        
+        // Set cursor to the end of the inserted text
+        const newCursorPosition = beforeIncomplete.length + incompleteSentence.length + insertText.length;
+        element.selectionStart = element.selectionEnd = newCursorPosition;
+      }
     }
     hidePredictionBar();
     currentPrediction = '';
+    jsonResponse = null;
   }
 }
 
@@ -1009,31 +1068,27 @@ function triggerPrediction(element) {
   const textBeforeCursor = getTextBeforeCursor(element);
   const currentUrl = getCurrentPageUrl();
   
-  const prompt = `Given the following context and text, predict the next few words (max 10 words). Predict what the user is typing next, as if you were the user.\
-  The prediction should not include any part of the current text, only new words are allowed. DONT INCLUDE ANYTHING ON YOUR RESPONSE OTHER THAN THE PREDICTION. NO COMMENTS OR CONVERSATION.
-  INCLUDE A SPACE BEFORE THE PREDICTION IF IT IS NOT THE FIRST WORD OF THE TEXT. DONT USE PERIODS IF ITS NOT THE END OF THE TEXT.
-  Example:
-  Current text: "Hello, my name is Ernesto and "
-  Prediction: " I was wondering if you could"
-
-  Current text: "We booked a table for"
-  Prediction: " 6 people at 8pm"
-
-  Current text: ${textBeforeCursor}
-  Prediction:
-  \
-`;
+  const prompt = `Given the following context and text, predict the next few words or complete the current word. Predict what the user is typing next, as if you were the user.\nProvide the output in JSON format with the following fields:\n- incomplete_sentence: The incomplete sentence from the input, including any partial word\n- complete_sentence: A possible completion of the sentence\n\nExamples:\nInput: "Hello, my name is Ernes"\nOutput: {\n  "incomplete_sentence": "Hello, my name is Ernes",\n  "complete_sentence": "Hello, my name is Ernesto and I am a software engineer"\n}\n\nInput: "We booked a table for si"\nOutput: {\n  "incomplete_sentence": "We booked a table for si",\n  "complete_sentence": "We booked a table for six people at 8pm tonight"\n}\nDONT USE MARKDOWN, JUST PLAIN TEXT, DONT USE bullet quotes for code block.\nNow, predict for the following text:\n${textBeforeCursor}\n`;
 
   chrome.runtime.sendMessage({ action: 'getPrediction', prompt: prompt }, (response) => {
     if (response && response.prediction) {
-      currentPrediction = response.prediction.trim();
-      const rect = element.getBoundingClientRect();
-      const cursorPos = getCursorPosition(element);
-      showPredictionBar(
-        rect.left + cursorPos.x + window.scrollX,
-        rect.top + cursorPos.y + window.scrollY,
-        currentPrediction
-      );
+      // Log the full raw answer from the model
+      console.log('Full raw answer from model:', response.prediction);
+      
+      try {
+        jsonResponse = JSON.parse(response.prediction);
+        currentPrediction = jsonResponse.complete_sentence.substring(jsonResponse.incomplete_sentence.length).trim();
+        const rect = element.getBoundingClientRect();
+        const cursorPos = getCursorPosition(element);
+        showPredictionBar(
+          rect.left + cursorPos.x + window.scrollX,
+          rect.top + cursorPos.y + window.scrollY,
+          currentPrediction
+        );
+      } catch (error) {
+        console.error('Error parsing JSON response:', error);
+        jsonResponse = null;
+      }
     }
   });
 }
@@ -1044,7 +1099,8 @@ function getCursorPosition(element) {
     const selection = window.getSelection();
     const range = selection.getRangeAt(0);
     const clone = range.cloneRange();
-    clone.setStart(element, 0);
+    clone.selectNodeContents(element);
+    clone.setEnd(range.endContainer, range.endOffset);
     const rect = clone.getBoundingClientRect();
     return { x: rect.right - element.getBoundingClientRect().left, y: rect.top - element.getBoundingClientRect().top };
   } else {

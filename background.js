@@ -205,7 +205,7 @@ function handleFixGrammar(prompt, tabId, sendResponse) {
   });
 }
 
-// Add this new function to handle the prediction request
+// Modify the handleGetPrediction function
 function handleGetPrediction(prompt, tabId, sendResponse) {
   chrome.storage.sync.get('selectedModel', (data) => {
     const model = data.selectedModel || 'llama3.2';
