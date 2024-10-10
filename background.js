@@ -114,6 +114,9 @@ function streamResponse(model, messages, tabId, updateChatHistory) {
           console.log('Final raw response:', accumulatedResponse);
           chrome.tabs.sendMessage(tabId, {action: 'logFinalResponse', response: accumulatedResponse});
           
+          // Add this line to log the text after completion
+          console.log('Text after completion:', accumulatedResponse);
+          
           return;
         }
 
