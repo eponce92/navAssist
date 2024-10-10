@@ -5,71 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>navAssist</title>
   <style>
+    :root {
+      --primary-color: #4285F4;
+      --background-color: #F5F5F5;
+      --card-background: #FFFFFF;
+      --text-color: #333333;
+      --border-color: #E0E0E0;
+      --hover-color: #3367D6;
+      --switch-off-color: #BDBDBD;
+    }
+
     body {
-      font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-      width: 320px;
+      font-family: 'Roboto', 'Segoe UI', 'Helvetica Neue', sans-serif;
+      width: 340px;
       margin: 0;
       padding: 20px;
-      background-color: #f0f2f5;
+      background-color: var(--background-color);
+      color: var(--text-color);
     }
+
     .card {
-      background-color: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      background-color: var(--card-background);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
       padding: 24px;
     }
+
     h1 {
       font-size: 24px;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin: 0 0 20px 0;
+      font-weight: 500;
+      color: var(--primary-color);
+      margin: 0 0 24px 0;
+      text-align: center;
     }
+
     .section {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
+
     .section-title {
       font-size: 14px;
-      font-weight: 600;
-      color: #4a4a4a;
-      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--text-color);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+
     select, button {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
       font-size: 14px;
-      background-color: #ffffff;
+      background-color: var(--card-background);
+      transition: all 0.3s ease;
     }
+
     select {
       appearance: none;
-      background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+      background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%234285F4%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
       background-repeat: no-repeat;
-      background-position: right 10px top 50%;
+      background-position: right 12px top 50%;
       background-size: 12px auto;
     }
+
+    select:focus, button:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+    }
+
     button {
-      background-color: #3498db;
+      background-color: var(--primary-color);
       color: white;
       border: none;
       cursor: pointer;
-      transition: background-color 0.3s ease;
-      font-weight: 600;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+
     button:hover {
-      background-color: #2980b9;
+      background-color: var(--hover-color);
     }
+
     .switch {
       position: relative;
       display: inline-block;
       width: 50px;
-      height: 24px;
+      height: 26px;
     }
+
     .switch input {
       opacity: 0;
       width: 0;
       height: 0;
     }
+
     .slider {
       position: absolute;
       cursor: pointer;
@@ -77,36 +109,49 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: #ccc;
+      background-color: var(--switch-off-color);
       transition: .4s;
-      border-radius: 24px;
+      border-radius: 26px;
     }
+
     .slider:before {
       position: absolute;
       content: "";
-      height: 18px;
-      width: 18px;
+      height: 20px;
+      width: 20px;
       left: 3px;
       bottom: 3px;
       background-color: white;
       transition: .4s;
       border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
+
     input:checked + .slider {
-      background-color: #3498db;
+      background-color: var(--primary-color);
     }
+
     input:checked + .slider:before {
-      transform: translateX(26px);
+      transform: translateX(24px);
     }
+
     .toggle-container {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      display: block;
+    }
   </style>
 </head>
 <body>
   <div class="card">
+    <img src="icon-128.png" alt="navAssist Logo" class="logo">
     <h1>navAssist</h1>
     <div class="section">
       <div class="section-title">Select Model</div>
