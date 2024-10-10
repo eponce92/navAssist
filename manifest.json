@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "navAssist",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "An AI-powered assistant for web navigation and content interaction.",
   "permissions": [
     "storage",
