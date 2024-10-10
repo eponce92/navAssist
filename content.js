@@ -851,7 +851,7 @@ function fixGrammar() {
   }
   
   if (selectedText) {
-    const prompt = `Fix this text grammar, don't change tone or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the line breaks and spaces of the original text:\n\n${selectedText}`;
+    const prompt = `Fix this text grammar, don't change tone, language, or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the line breaks and spaces of the original text:\n\n${selectedText}`;
     
     // Show loading indicator
     showLoadingIndicator();
@@ -1287,7 +1287,12 @@ function handleInput(e) {
 function handleKeyDown(e) {
   if (!isExtensionActive) return;
 
-  if (e.key === 'Tab' && currentPrediction) {
+  if (e.key === 'Enter') {
+    if (!e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  } else if (e.key === 'Tab' && currentPrediction) {
     e.preventDefault();
     insertPrediction(e.target);
   } else if (e.key === 'Escape') {

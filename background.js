@@ -66,6 +66,8 @@ function handleSummarizeContent(sender, tabId) {
 
         Zusammenfassen Sie den folgenden Inhalt in derselben Sprache wie den Inhalt:
 
+        NEVER CHANGE THE LANGUAGE OF THE CONTENT, JUST SUMMARIZE IT.
+
         ${pageContent}`;
       
       getChatHistory(tabId, (history) => {
