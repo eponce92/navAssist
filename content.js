@@ -829,24 +829,38 @@ function fixGrammar() {
     // Show loading indicator
     showLoadingIndicator();
 
-    chrome.runtime.sendMessage({action: 'fixGrammar', prompt: prompt}, (response) => {
-      // Hide loading indicator
-      hideLoadingIndicator();
-
-      if (response && response.fixedText) {
-        console.log('Received fixed text:', response.fixedText);
-        const success = replaceSelectedText(response.fixedText, lastSelection);
-        if (success) {
-          showNotification('Grammar fixed successfully!', 'success');
-        } else {
-          showNotification('Failed to replace text. Please try again.', 'error');
+    const sendMessageToBackground = () => {
+      chrome.runtime.sendMessage({action: 'fixGrammar', prompt: prompt}, (response) => {
+        // Check if the extension context is still valid
+        if (chrome.runtime.lastError) {
+          console.error('Extension context invalidated:', chrome.runtime.lastError);
+          // Attempt to reconnect
+          setTimeout(() => {
+            console.log('Attempting to reconnect...');
+            sendMessageToBackground();
+          }, 1000);
+          return;
         }
-      } else {
-        console.error('Failed to fix grammar');
-        showNotification('Failed to fix grammar. Please try again.', 'error');
-      }
-    });
 
+        // Hide loading indicator
+        hideLoadingIndicator();
+
+        if (response && response.fixedText) {
+          console.log('Received fixed text:', response.fixedText);
+          const success = replaceSelectedText(response.fixedText, lastSelection);
+          if (success) {
+            showNotification('Grammar fixed successfully!', 'success');
+          } else {
+            showNotification('Failed to replace text. Please try again.', 'error');
+          }
+        } else {
+          console.error('Failed to fix grammar');
+          showNotification('Failed to fix grammar. Please try again.', 'error');
+        }
+      });
+    };
+
+    sendMessageToBackground();
     hideFloatingBar();
   } else {
     console.error('No valid selection found');
@@ -854,7 +868,6 @@ function fixGrammar() {
   }
 }
 
-// Modify the replaceSelectedText function
 function replaceSelectedText(newText, storedRange) {
   console.log('Attempting to replace text:', newText);
   
@@ -878,19 +891,48 @@ function replaceSelectedText(newText, storedRange) {
         (activeElement.tagName === 'INPUT' && activeElement.type === 'text')) {
       // If the selection is within an editable field
       if (activeElement.isContentEditable) {
+        // Handle contenteditable divs
+        const fragment = range.createContextualFragment(newText);
         range.deleteContents();
-        range.insertNode(document.createTextNode(newText));
+        range.insertNode(fragment);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        // Trigger input events
+        const inputEvent = new InputEvent('input', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertReplacementText',
+          data: newText
+        });
+        activeElement.dispatchEvent(inputEvent);
+
+        // Force update for reactive frameworks
+        setTimeout(() => {
+          const forceUpdateEvent = new Event('input', { bubbles: true, cancelable: true });
+          activeElement.dispatchEvent(forceUpdateEvent);
+        }, 0);
       } else {
+        // Handle textarea and input elements
         const start = activeElement.selectionStart;
         const end = activeElement.selectionEnd;
         const text = activeElement.value;
         activeElement.value = text.slice(0, start) + newText + text.slice(end);
         activeElement.setSelectionRange(start + newText.length, start + newText.length);
+
+        // Trigger input event for textarea and input elements
+        const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+        activeElement.dispatchEvent(inputEvent);
       }
     } else {
       // If the selection is in a non-editable area
+      const fragment = range.createContextualFragment(newText);
       range.deleteContents();
-      range.insertNode(document.createTextNode(newText));
+      range.insertNode(fragment);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
     console.log('Text replaced successfully');
     return true;
@@ -900,26 +942,35 @@ function replaceSelectedText(newText, storedRange) {
   }
 }
 
-// Add this function to get the current selection
-function getCurrentSelection() {
-  const selection = window.getSelection();
-  if (selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    console.log('Current selection:', range.toString());
-    console.log('Selection parent element:', range.commonAncestorContainer.tagName);
-  } else {
-    console.log('No current selection');
-  }
-}
-
 function showLoadingIndicator() {
   console.log('Showing loading indicator');
-  // Implement a loading indicator, e.g., a spinner or progress bar
+  let loadingIndicator = document.getElementById('navAssistLoadingIndicator');
+  if (!loadingIndicator) {
+    loadingIndicator = document.createElement('div');
+    loadingIndicator.id = 'navAssistLoadingIndicator';
+    loadingIndicator.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 2147483647;
+    `;
+    loadingIndicator.textContent = 'Fixing grammar...';
+    document.body.appendChild(loadingIndicator);
+  }
+  loadingIndicator.style.display = 'block';
 }
 
 function hideLoadingIndicator() {
   console.log('Hiding loading indicator');
-  // Hide the loading indicator
+  const loadingIndicator = document.getElementById('navAssistLoadingIndicator');
+  if (loadingIndicator) {
+    loadingIndicator.style.display = 'none';
+  }
 }
 
 function showNotification(message, type) {
