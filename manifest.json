@@ -2,29 +2,37 @@
   "manifest_version": 3,
   "name": "navAssist",
   "version": "1.0",
-  "description": "Chat with various Ollama models",
-  "icons": {
-    "128": "icon.png"
-  },
-  "permissions": ["activeTab", "storage", "tabs"],
+  "description": "An AI-powered assistant for web navigation and content interaction.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
   "action": {
     "default_popup": "popup.html",
-    "default_icon": "icon.png"
+    "default_icon": {
+      "16": "icon-16.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icon-16.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "css": ["styles.css"],
-      "run_at": "document_idle"
+      "css": ["styles.css"]
     }
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "web_accessible_resources": [
     {
-      "resources": ["content.js", "styles.css", "icon.png"],
+      "resources": ["icon.png"],
       "matches": ["<all_urls>"]
     }
   ]
