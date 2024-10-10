@@ -415,7 +415,6 @@ function toggleSidebarMode() {
   }, 300);
 }
 
-// Add this function to set sidebar mode
 function setSidebarMode() {
   chatWindow.classList.add('sidebar-mode');
   chatWindow.classList.remove('popup-mode');
@@ -427,6 +426,9 @@ function setSidebarMode() {
     chatWindow.style.left = 'auto';
     chatWindow.style.bottom = 'auto';
     document.body.style.marginRight = `${initialSidebarWidth}px`;
+    
+    // Force a reflow to ensure the sidebar is rendered
+    chatWindow.offsetHeight;
   });
 }
 
@@ -486,20 +488,45 @@ function showChatWindow() {
     chatWindow.style.display = 'flex';
     isChatVisible = true;
     chrome.storage.local.set({ isChatVisible: true });
-    const toggleButton = document.getElementById('showChatToggle');
-    if (toggleButton) {
-      toggleButton.style.display = 'none';
-    }
   } else {
     createChatWindow();
   }
-}
 
-function toggleChat() {
-  if (isChatVisible) {
-    hideChatWindow();
-  } else {
-    showChatWindow();
+  // Force a reflow and check visibility
+  setTimeout(() => {
+    if (chatWindow) {
+      chatWindow.style.opacity = '0';
+      chatWindow.offsetHeight; // Force a reflow
+      chatWindow.style.opacity = '1';
+      
+      // Set the correct mode after creating or showing the window
+      if (isSidebar) {
+        setSidebarMode();
+      } else {
+        setPopupMode();
+      }
+
+      // Check if the window is actually visible
+      setTimeout(() => {
+        const isVisible = chatWindow.offsetParent !== null;
+        console.log('Chat window visibility check:', isVisible);
+        if (!isVisible) {
+          console.log('Chat window not visible, attempting to show again');
+          chatWindow.style.display = 'flex';
+          if (isSidebar) {
+            setSidebarMode();
+          } else {
+            setPopupMode();
+          }
+        }
+      }, 100);
+    }
+  }, 0);
+
+  // Hide the toggle button
+  const toggleButton = document.getElementById('showChatToggle');
+  if (toggleButton) {
+    toggleButton.style.display = 'none';
   }
 }
 
