@@ -12,6 +12,7 @@ let floatingBar = null;
 let selectedText = '';
 let selectionTimeout = null;
 let lastSelection = null;
+let lastSelectedText = '';
 let predictionBar = null;
 let currentPrediction = '';
 let isTyping = false;
@@ -20,6 +21,7 @@ const TYPING_INTERVAL = 700; // ms
 let floatingBarShown = false;
 let showFloatingBarTimeout = null;
 let isFloatingBarVisible = false; // Keep only this declaration
+let isCtrlASelection = false;
 
 const isGmail = window.location.hostname === 'mail.google.com';
 
@@ -678,8 +680,8 @@ function checkFloatingBarVisibility() {
 }
 
 // Update the showFloatingBar function
-function showFloatingBar(x, y) {
-  console.log('showFloatingBar called with coordinates:', x, y);
+function showFloatingBar(x, y, isCtrlA = false) {
+  console.log('showFloatingBar called with coordinates:', x, y, 'isCtrlA:', isCtrlA);
   if (!floatingBar) {
     console.log('Creating floating bar');
     createFloatingBar();
@@ -687,7 +689,7 @@ function showFloatingBar(x, y) {
   
   // Position the floating bar above the selected text
   const barHeight = floatingBar.offsetHeight;
-  const offset = 50;
+  const offset = isCtrlA ? 10 : 50; // Reduce offset for Ctrl+A selections
   const viewportHeight = window.innerHeight;
   
   // Calculate the position
@@ -707,26 +709,38 @@ function showFloatingBar(x, y) {
   floatingBar.style.left = `${x}px`;
   floatingBar.style.top = `${top}px`;
   floatingBar.style.display = 'flex';
+  floatingBar.style.position = 'fixed'; // Ensure the bar is positioned relative to the viewport
+  floatingBar.style.zIndex = '2147483647'; // Ensure the bar is on top of other elements
   
   // Add a fade-in effect
   floatingBar.style.opacity = '0';
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     floatingBar.style.opacity = '1';
-  }, 10);
+  });
 
   isFloatingBarVisible = true;
   console.log('Floating bar should now be visible');
+
+  // Set a flag to indicate that this is a Ctrl+A selection
+  isCtrlASelection = isCtrlA;
 }
 
 // Update the hideFloatingBar function
 function hideFloatingBar() {
+  console.log('hideFloatingBar called, isFloatingBarVisible:', isFloatingBarVisible);
+  console.log('Floating bar actually visible:', isFloatingBarActuallyVisible());
+  
   if (floatingBar && isFloatingBarVisible) {
     console.log('Hiding floating bar');
     floatingBar.style.opacity = '0';
     setTimeout(() => {
       floatingBar.style.display = 'none';
       isFloatingBarVisible = false;
+      isCtrlASelection = false; // Reset the Ctrl+A flag
+      console.log('Floating bar hidden');
     }, 300); // Match the transition duration in CSS
+  } else {
+    console.log('Floating bar not visible or already hidden');
   }
 }
 
@@ -754,12 +768,15 @@ document.addEventListener('mouseup', (e) => {
       lastSelection = selection.getRangeAt(0).cloneRange();
       const rect = lastSelection.getBoundingClientRect();
       showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
-    } else if (!selectedText && isFloatingBarVisible) {
+    } else if (!selectedText && isFloatingBarVisible && !isCtrlASelection) {
       console.log('Hiding floating bar');
       hideFloatingBar();
     } else {
       console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', isFloatingBarVisible);
     }
+
+    // Reset the Ctrl+A selection flag
+    isCtrlASelection = false;
 
     // Hide prediction bar when selecting text
     hidePredictionBar();
@@ -795,10 +812,18 @@ function transferSelectedTextToChat() {
   }
 }
 
-// Add this new function to handle grammar fixing
 function fixGrammar() {
   console.log('Fixing grammar for:', selectedText);
-  if (selectedText && lastSelection) {
+  if (!selectedText && lastSelection) {
+    console.log('selectedText is empty, using lastSelection');
+    const range = lastSelection.cloneRange();
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(range.cloneContents());
+    selectedText = tempDiv.innerText;
+    console.log('Extracted text from lastSelection:', selectedText);
+  }
+  
+  if (selectedText) {
     const prompt = `Fix this text grammar, don't change tone or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the line breaks and spaces of the original text:\n\n${selectedText}`;
     
     // Show loading indicator
@@ -834,6 +859,11 @@ function replaceSelectedText(newText, storedRange) {
   console.log('Attempting to replace text:', newText);
   
   try {
+    if (!storedRange) {
+      console.error('No stored range found');
+      return false;
+    }
+
     const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(storedRange);
@@ -1186,5 +1216,105 @@ function handleKeyDown(e) {
     hidePredictionBar();
   } else {
     hidePredictionBar();
+  }
+}
+
+// Add these new event listeners at the end of your content.js file
+
+document.addEventListener('keydown', (e) => {
+  if (!isExtensionActive) return;
+
+  // Check for Ctrl+A (Select All)
+  if (e.ctrlKey && e.key === 'a') {
+    // Use setTimeout to allow the selection to be made before we act on it
+    setTimeout(() => {
+      const selection = window.getSelection();
+      selectedText = selection.toString().trim();
+      
+      console.log('Ctrl+A pressed, selected text:', selectedText);
+      
+      if (selectedText) {
+        lastSelection = selection.getRangeAt(0).cloneRange();
+        const rect = lastSelection.getBoundingClientRect();
+        console.log('Selection rect:', rect);
+        showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
+      }
+    }, 0);
+  }
+
+  // Check for Ctrl+Space when the floating bar is visible
+  if (e.ctrlKey && e.code === 'Space' && isFloatingBarVisible) {
+    e.preventDefault(); // Prevent default space behavior
+    fixGrammar();
+  }
+});
+
+// Modify the showFloatingBar function to log more information
+function showFloatingBar(x, y) {
+  console.log('showFloatingBar called with coordinates:', x, y);
+  if (!floatingBar) {
+    console.log('Creating floating bar');
+    createFloatingBar();
+  }
+  
+  // Position the floating bar above the selected text
+  const barHeight = floatingBar.offsetHeight;
+  const offset = 50;
+  const viewportHeight = window.innerHeight;
+  
+  // Calculate the position
+  let top = y - barHeight - offset;
+  
+  // Ensure the bar doesn't go off-screen at the top
+  if (top < 0) {
+    top = offset;
+  }
+  
+  // Ensure the bar doesn't go off-screen at the bottom
+  if (top + barHeight > viewportHeight) {
+    top = viewportHeight - barHeight - offset;
+  }
+  
+  console.log('Setting floating bar position:', { left: x, top: top });
+  floatingBar.style.left = `${x}px`;
+  floatingBar.style.top = `${top}px`;
+  floatingBar.style.display = 'flex';
+  
+  // Add a fade-in effect
+  floatingBar.style.opacity = '0';
+  setTimeout(() => {
+    floatingBar.style.opacity = '1';
+  }, 10);
+
+  isFloatingBarVisible = true;
+  console.log('Floating bar should now be visible');
+
+  // Set a flag to indicate that this is a Ctrl+A selection
+  isCtrlASelection = true;
+}
+
+// Add this function to check if the floating bar is actually visible
+function isFloatingBarActuallyVisible() {
+  return floatingBar && 
+         floatingBar.style.display !== 'none' && 
+         floatingBar.style.opacity !== '0' &&
+         document.body.contains(floatingBar);
+}
+
+// Modify the hideFloatingBar function to log more information
+function hideFloatingBar() {
+  console.log('hideFloatingBar called, isFloatingBarVisible:', isFloatingBarVisible);
+  console.log('Floating bar actually visible:', isFloatingBarActuallyVisible());
+  
+  if (floatingBar && isFloatingBarVisible) {
+    console.log('Hiding floating bar');
+    floatingBar.style.opacity = '0';
+    setTimeout(() => {
+      floatingBar.style.display = 'none';
+      isFloatingBarVisible = false;
+      console.log('Floating bar hidden');
+    }, 300); // Match the transition duration in CSS
+  } else {
+    console.log('Floating bar not visible or already hidden');
   }
 }
