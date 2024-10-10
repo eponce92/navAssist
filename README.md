@@ -7,12 +7,25 @@
 - 📊 Summarize web page content with a single click
 - 📱 Responsive design with draggable and resizable chat window
 
+## Latest Release
+
+### Version 1.0.1
+
+- Added a floating bar for quick access to AI features
+- Improved text prediction functionality
+- Fixed bug in grammar correction feature
+- Updated UI for better visibility in dark mode
+
 ## 🛠️ Installation
 
-1. Clone this repository or download the ZIP file.
-2. Open Chrome and navigate to `chrome://extensions`.
-3. Enable "Developer mode" in the top right corner.
-4. Click "Load unpacked" and select the extension directory.
+1. Go to the [Releases](https://github.com/yourusername/navAssist/releases) page of this repository.
+2. Download the `navAssist-vX.X.X.zip` file from the latest release.
+3. Unzip the downloaded file.
+4. Open Chrome and go to `chrome://extensions/`.
+5. Enable "Developer mode" in the top right corner.
+6. Click "Load unpacked" and select the unzipped folder.
+
+The navAssist extension should now be installed and ready to use!
 
 ## 📋 Prerequisites
 
@@ -91,3 +104,14 @@ This project is [MIT](https://choosealicense.com/licenses/mit/) licensed.
 ---
 
 Made with ❤️ by [eponce92](https://github.com/eponce92)
+
+## Installation
+
+1. Go to the [Releases](https://github.com/yourusername/navAssist/releases) page of this repository.
+2. Download the `navAssist-vX.X.X.zip` file from the latest release.
+3. Unzip the downloaded file.
+4. Open Chrome and go to `chrome://extensions/`.
+5. Enable "Developer mode" in the top right corner.
+6. Click "Load unpacked" and select the unzipped folder.
+
+The navAssist extension should now be installed and ready to use!
