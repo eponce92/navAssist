@@ -37,16 +37,32 @@
        ```
      - Restart your terminal or run `source ~/.bashrc` (or the appropriate config file)
 
-2. Start the Ollama server:
+2. Download the required Ollama models:
+
+   Open a terminal and run the following commands to download the models:
+
+   ```
+   ollama pull llama3.2
+   ollama pull qwen2.5:latest
+   ollama pull qwen2.5:3b
+   ollama pull my-dolphin-mistral-nemo:latest
+   ollama pull gemma2
+   ollama pull gemma2:2b
+   ollama pull phi3.5
+   ```
+
+   This process may take some time depending on your internet connection and the size of the models.
+
+3. Start the Ollama server:
 
    ```
    ollama serve
    ```
 
-3. Click the navAssist icon in your Chrome toolbar to open the popup.
-4. Select your preferred AI model from the dropdown menu.
-5. Toggle the switch to enable navAssist.
-6. Start chatting with your AI assistant on any web page!
+4. Click the navAssist icon in your Chrome toolbar to open the popup.
+5. Select your preferred AI model from the dropdown menu.
+6. Toggle the switch to enable navAssist.
+7. Start chatting with your AI assistant on any web page!
 
 ## 💡 Usage Tips
 
