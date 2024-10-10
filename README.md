@@ -9,12 +9,9 @@
 
 ## Latest Release
 
-### Version 1.0.1
+### Version 1.0.2
 
-- Added a floating bar for quick access to AI features
-- Improved text prediction functionality
-- Fixed bug in grammar correction feature
-- Updated UI for better visibility in dark mode
+- Removed hardcoded model names and uses installed models instead
 
 ## 🛠️ Installation
 

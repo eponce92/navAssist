@@ -5,7 +5,8 @@
   "description": "An AI-powered assistant for web navigation and content interaction.",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "http://localhost:11434/"
   ],
   "action": {
     "default_popup": "popup.html",
