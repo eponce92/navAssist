@@ -1,27 +1,42 @@
 /* At the beginning of the file, change the default root variables */
 :root {
-  --primary-color: #3498db;
-  --background-color: #1a1a1a;
-  --text-color: #f0f0f0;
+  --primary-color: #3F51B5; /* Updated to the new color */
+  --background-color: #2C2C2C;
+  --text-color: #E0E0E0;
   --border-color: #444444;
   --shadow-color: rgba(0, 0, 0, 0.3);
-  --message-bg-user: #1e3a5f;
-  --message-bg-assistant: #2c2c2c;
-  --primary-color-hover: #3498db;
-  --accent-color: #2ecc71;
+  --message-bg-user: #303F9F; /* Slightly darker shade of primary color */
+  --message-bg-assistant: #383838;
+  --primary-color-hover: #5C6BC0; /* Lighter shade for hover effects */
+  --accent-color: #4CAF50;
 }
 
 /* Change the [data-theme="dark"] to [data-theme="light"] and adjust variables */
 [data-theme="light"] {
-  --primary-color: #2980b9;
-  --background-color: #ffffff;
+  --primary-color: #3F51B5; /* Keeping the same color for consistency */
+  --background-color: #FFFFFF;
   --text-color: #333333;
-  --border-color: #e0e0e0;
+  --border-color: #E0E0E0;
   --shadow-color: rgba(0, 0, 0, 0.1);
-  --message-bg-user: #e8f5fe;
-  --message-bg-assistant: #f0f2f5;
-  --primary-color-hover: #3498db;
-  --accent-color: #27ae60;
+  --message-bg-user: #E8EAF6; /* Light shade of primary color */
+  --message-bg-assistant: #F5F5F5;
+  --primary-color-hover: #5C6BC0;
+  --accent-color: #4CAF50;
+}
+
+/* Force dark theme for YouTube */
+@media (prefers-color-scheme: dark) {
+  #chatWindow {
+    --primary-color: #3F51B5;
+    --background-color: #2C2C2C;
+    --text-color: #E0E0E0;
+    --border-color: #444444;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --message-bg-user: #303F9F;
+    --message-bg-assistant: #383838;
+    --primary-color-hover: #5C6BC0;
+    --accent-color: #4CAF50;
+  }
 }
 
 #chatWindow {
@@ -378,7 +393,7 @@ body.transitioning {
 
 #showChatToggle {
   position: fixed;
-  right: 0;
+  right: -36px; /* Hide more of the button initially */
   top: 50%;
   transform: translateY(-50%);
   background-color: var(--primary-color);
@@ -386,7 +401,7 @@ body.transitioning {
   border: none;
   border-top-left-radius: 24px;
   border-bottom-left-radius: 24px;
-  padding: 12px 8px 12px 12px;
+  padding: 16px 12px 16px 16px;
   cursor: pointer;
   z-index: 2147483647;
   box-shadow: -2px 0 8px var(--shadow-color);
@@ -394,13 +409,15 @@ body.transitioning {
 }
 
 #showChatToggle:hover {
+  right: -4px; /* Reveal most of the button on hover */
   background-color: var(--primary-color-hover);
-  padding-right: 12px;
+  padding-right: 36px;
+  transform: translateY(-50%) scale(1.1);
 }
 
 #showChatToggle svg {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: block;
 }
 
@@ -479,4 +496,63 @@ body.transitioning {
 
 #chatWindow.sidebar-mode #sidebarResizeHandle:hover {
   background-color: rgba(41, 128, 185, 0.2);
+}
+
+/* Add these styles to your existing styles.css file */
+
+.download-item {
+  margin-bottom: 15px;
+  padding: 12px;
+  background-color: #f0f2f5;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.model-name {
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: block;
+  font-size: 14px;
+}
+
+.progress-container {
+  margin-top: 10px;
+  display: block;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background-color: #e0e0e0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress {
+  width: 0;
+  height: 100%;
+  background-color: var(--primary-color);
+  transition: width 0.3s ease;
+}
+
+.status {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+  display: block;
+}
+
+.download-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.download-button:hover {
+  background-color: var(--primary-color-hover);
 }
