@@ -13,12 +13,29 @@
   let isCtrlASelection = false;
   let showFloatingBarTimeout = null;
 
-  function initializeExtension() {
-    chatWindowVisibility.default.createChatWindow(); // Change this line
+  async function initializeExtension() {
+    console.log('Initializing extension');
+    await new Promise(resolve => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', resolve);
+      } else {
+        resolve();
+      }
+    });
+
+    console.log('DOM is ready, creating chat window');
+    const chatWindow = chatWindowVisibility.default.createChatWindow();
+    console.log('Chat window created:', chatWindow);
+
+    completeInitialization();
+  }
+
+  function completeInitialization() {
+    console.log('Completing initialization');
     predictionBar.default.createPredictionBar();
     predictionBar.default.addPredictionListeners();
     addGlobalEventListeners();
-    showChatToggle(); // Make sure the toggle button is shown initially
+    showChatToggle();
   }
 
   function addGlobalEventListeners() {
@@ -51,6 +68,7 @@
         lastSelection = selection.getRangeAt(0).cloneRange();
         const rect = lastSelection.getBoundingClientRect();
         floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
+        floatingBar.default.updateSelection(selectedText, lastSelection);  // Update this line
       } else if (!selectedText && floatingBar.default.isFloatingBarActuallyVisible() && !isCtrlASelection) {
         console.log('Hiding floating bar');
         floatingBar.default.hideFloatingBar();
@@ -64,7 +82,7 @@
   }
 
   function handleMouseDown(e) {
-    if (floatingBar.default.isFloatingBarActuallyVisible() && !floatingBar.default.floatingBar.contains(e.target) && e.target.id !== 'navAssistFloatingBarTooltip') {
+    if (floatingBar.default.isFloatingBarActuallyVisible() && !floatingBar.default.isFloatingBarContainingTarget(e.target) && e.target.id !== 'navAssistFloatingBarTooltip') {
       console.log('Mousedown outside floating bar, hiding it');
       floatingBar.default.hideFloatingBar();
     }
@@ -94,6 +112,7 @@
           const rect = lastSelection.getBoundingClientRect();
           console.log('Selection rect:', rect);
           floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY, true);
+          floatingBar.default.updateSelection(selectedText, lastSelection);  // Add this line
         }
       }, 0);
     }
@@ -132,15 +151,17 @@
       toggleButton.style.transform = 'translateY(-50%)';
     }
     toggleButton.style.display = 'block';
-    toggleButton.removeAttribute('aria-hidden');
   }
 
   function handleShowChatWindow() {
     console.log('Show chat window button clicked');
     chatWindowVisibility.default.showChatWindow();
-    const toggleButton = document.getElementById('showChatToggle');
-    if (toggleButton) {
-      toggleButton.style.display = 'none';
+    
+    // Enable dragging and resizing if in popup mode
+    if (!chatWindowVisibility.default.isSidebar) {
+      const chatWindow = document.querySelector('#chatWindow');
+      chatWindowUI.default.enableDragging(chatWindow);
+      chatWindowUI.default.enableResizing(chatWindow);
     }
   }
 
@@ -152,17 +173,7 @@
       console.log('Final response from model:', request.response);
     }
     if (request.action === 'toggleExtensionPower') {
-      chatWindowVisibility.default.isExtensionActive = request.isEnabled;
-      if (chatWindowVisibility.default.isExtensionActive) {
-        chatWindowVisibility.default.updateChatWindowVisibility();
-        showChatToggle();
-      } else {
-        chatWindowVisibility.default.removeChatWindow();
-        const toggleButton = document.getElementById('showChatToggle');
-        if (toggleButton) {
-          toggleButton.style.display = 'none';
-        }
-      }
+      chatWindowVisibility.default.handleToggleExtensionPower(request.isEnabled);
     }
     if (request.action === 'getPageContent') {
       const pageContent = document.body.innerText;

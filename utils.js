@@ -1,10 +1,16 @@
+import { isExtensionActive } from './chatWindowVisibility.js';
+
 // Utility functions used across multiple modules
+
+let isTyping = false;
+let typingTimer = null;
+const TYPING_INTERVAL = 700; // ms
 
 function isEditableElement(element) {
   return element.isContentEditable || element.tagName === 'TEXTAREA' || (element.tagName === 'INPUT' && element.type === 'text');
 }
 
-function handleInput(e) {
+function handleInput(e, triggerPrediction) {
   if (!isExtensionActive) return;
 
   isTyping = true;

@@ -110,10 +110,7 @@ function showFloatingBar(x, y, isCtrlA = false) {
 }
 
 function hideFloatingBar() {
-  console.log('hideFloatingBar called, isFloatingBarVisible:', isFloatingBarVisible);
-  console.log('Floating bar actually visible:', isFloatingBarActuallyVisible());
-  
-  if (floatingBar && isFloatingBarVisible) {
+  if (floatingBar && isFloatingBarVisible && isFloatingBarActuallyVisible()) {
     console.log('Hiding floating bar');
     floatingBar.style.opacity = '0';
     setTimeout(() => {
@@ -132,6 +129,10 @@ function isFloatingBarActuallyVisible() {
          floatingBar.style.display !== 'none' && 
          floatingBar.style.opacity !== '0' &&
          document.body.contains(floatingBar);
+}
+
+function isFloatingBarContainingTarget(target) {
+  return floatingBar && floatingBar.contains(target);
 }
 
 function transferSelectedTextToChat() {
@@ -161,25 +162,40 @@ function fixGrammar() {
   if (selectedText) {
     const prompt = `Fix this text grammar, don't change tone, language, or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the line breaks and spaces of the original text:\n\n${selectedText}`;
     
+    utils.showLoadingIndicator();
+    
     chrome.runtime.sendMessage({action: 'fixGrammar', prompt: prompt}, (response) => {
+      utils.hideLoadingIndicator();
+      
       if (response && response.fixedText) {
         console.log('Received fixed text:', response.fixedText);
-        const success = replaceSelectedText(response.fixedText, lastSelection);
-        if (success) {
-          showNotification('Grammar fixed successfully!', 'success');
+        if (lastSelection) {
+          const success = utils.replaceSelectedText(response.fixedText, lastSelection);
+          if (success) {
+            utils.showNotification('Grammar fixed successfully!', 'success');
+          } else {
+            utils.showNotification('Failed to replace text. Please try again.', 'error');
+          }
         } else {
-          showNotification('Failed to replace text. Please try again.', 'error');
+          console.error('No valid selection range found');
+          utils.showNotification('No valid selection range found. Please try selecting the text again.', 'error');
         }
       } else {
         console.error('Failed to fix grammar');
-        showNotification('Failed to fix grammar. Please try again.', 'error');
+        utils.showNotification('Failed to fix grammar. Please try again.', 'error');
       }
     });
     hideFloatingBar();
   } else {
     console.error('No valid selection found');
-    showNotification('No valid selection found. Please try again.', 'error');
+    utils.showNotification('No valid selection found. Please try again.', 'error');
   }
+}
+
+// Add this new function to update the selected text and selection range
+function updateSelection(text, range) {
+  selectedText = text;
+  lastSelection = range;
 }
 
 export default {
@@ -187,7 +203,9 @@ export default {
   showFloatingBar,
   hideFloatingBar,
   isFloatingBarActuallyVisible,
+  isFloatingBarContainingTarget,
   transferSelectedTextToChat,
   fixGrammar,
-  isFloatingBarVisible
+  isFloatingBarVisible,
+  updateSelection  // Replace updateSelectedText with this new function
 };

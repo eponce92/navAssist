@@ -1,4 +1,6 @@
 import utils from './utils.js';
+import { isExtensionActive } from './chatWindowVisibility.js';
+import { sendMessage } from './chatWindowCore.js';
 
 let predictionBar = null;
 let currentPrediction = '';
@@ -252,14 +254,14 @@ function getCursorPosition(element) {
 function addPredictionListeners() {
   document.addEventListener('focusin', (e) => {
     if (utils.isEditableElement(e.target)) {
-      e.target.addEventListener('input', utils.handleInput);
+      e.target.addEventListener('input', (event) => utils.handleInput(event, triggerPrediction));
       e.target.addEventListener('keydown', handleKeyDown);
     }
   });
 
   document.addEventListener('focusout', (e) => {
     if (utils.isEditableElement(e.target)) {
-      e.target.removeEventListener('input', utils.handleInput);
+      e.target.removeEventListener('input', (event) => utils.handleInput(event, triggerPrediction));
       e.target.removeEventListener('keydown', handleKeyDown);
       hidePredictionBar();
     }
@@ -269,12 +271,7 @@ function addPredictionListeners() {
 function handleKeyDown(e) {
   if (!isExtensionActive) return;
 
-  if (e.key === 'Enter') {
-    if (!e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  } else if (e.key === 'Tab' && e.shiftKey && currentPrediction) {
+  if (e.key === 'Tab' && e.shiftKey && currentPrediction) {
     e.preventDefault();
     insertPrediction(e.target);
   } else if (e.key === 'Escape') {
