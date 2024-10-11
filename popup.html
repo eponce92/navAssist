@@ -70,8 +70,8 @@
     .switch {
       position: relative;
       display: inline-block;
-      width: 40px;
-      height: 20px;
+      width: 60px;
+      height: 34px;
     }
     .switch input {
       opacity: 0;
@@ -87,15 +87,15 @@
       bottom: 0;
       background-color: #ccc;
       transition: .4s;
-      border-radius: 20px;
+      border-radius: 34px;
     }
     .slider:before {
       position: absolute;
       content: "";
-      height: 16px;
-      width: 16px;
-      left: 2px;
-      bottom: 2px;
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
       background-color: white;
       transition: .4s;
       border-radius: 50%;
@@ -104,7 +104,7 @@
       background-color: #2980b9;
     }
     input:checked + .slider:before {
-      transform: translateX(20px);
+      transform: translateX(26px);
     }
     .connection-status {
       display: flex;
@@ -123,6 +123,18 @@
     }
     .status-disconnected {
       background-color: #e74c3c;
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .theme-emoji {
+      font-size: 24px;
+      margin: 0 10px;
     }
   </style>
 </head>
@@ -152,12 +164,13 @@
       </div>
     </div>
     <div class="section">
-      <div class="toggle-container">
-        <span class="section-title">Dark Theme</span>
+      <div class="theme-toggle">
+        <span class="theme-emoji">🌞</span>
         <label class="switch">
           <input type="checkbox" id="themeToggle" checked>
-          <span class="slider"></span>
+          <span class="slider round"></span>
         </label>
+        <span class="theme-emoji">🌙</span>
       </div>
     </div>
     <div class="section">

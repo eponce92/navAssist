@@ -7,6 +7,34 @@
   const floatingBar = await import(src + 'floatingBar.js');
   const predictionBar = await import(src + 'predictionBar.js');
 
+  let currentTheme = 'light';
+
+  function applyTheme(isDarkTheme) {
+    currentTheme = isDarkTheme ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    if (chatWindowCore.applyTheme) {
+      chatWindowCore.applyTheme(isDarkTheme);
+    }
+    console.log('Theme applied to document:', currentTheme);
+    
+    // Update the chat toggle button
+    updateChatToggleButton(currentTheme);
+  }
+
+  function updateChatToggleButton(theme) {
+    const toggleButton = document.getElementById('showChatToggle');
+    if (toggleButton) {
+      toggleButton.style.backgroundColor = 'var(--primary-color-hover)';
+      toggleButton.style.color = 'white';
+    }
+  }
+
+  // Apply initial theme
+  chrome.storage.sync.get('isDarkTheme', function(data) {
+    const isDarkTheme = data.isDarkTheme !== false; // Default to true if not set
+    applyTheme(isDarkTheme);
+  });
+
   let isGmail = window.location.hostname === 'mail.google.com';
   let selectedText = '';
   let lastSelection = null;
@@ -140,26 +168,20 @@
 
   function showChatToggle() {
     if (!chatWindowVisibility.default.isExtensionActive) return;
-  
+
     let toggleButton = document.getElementById('showChatToggle');
     if (!toggleButton) {
       toggleButton = document.createElement('button');
       toggleButton.id = 'showChatToggle';
       toggleButton.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+          <path d="M19 12H5M12 19l-7 7-7-7"/>
         </svg>
       `;
       toggleButton.addEventListener('click', handleShowChatWindow);
       document.body.appendChild(toggleButton);
-      
-      // Position the toggle button on the right side of the window
-      toggleButton.style.position = 'fixed';
-      toggleButton.style.right = '0';
-      toggleButton.style.top = '50%';
-      toggleButton.style.transform = 'translateY(-50%)';
     }
-    toggleButton.style.display = 'block';
+    toggleButton.style.display = 'flex';
   }
 
   function handleShowChatWindow() {
@@ -168,7 +190,8 @@
     
     // Apply theme after showing the window
     chrome.storage.sync.get('isDarkTheme', function(data) {
-      chatWindowCore.applyTheme(data.isDarkTheme !== false);
+      const isDarkTheme = data.isDarkTheme !== false;
+      applyTheme(isDarkTheme);
     });
     
     // Enable dragging and resizing if in popup mode
@@ -194,7 +217,7 @@
       sendResponse(pageContent);
     }
     if (request.action === 'toggleTheme') {
-      chatWindowCore.applyTheme(request.isDarkTheme);
+      applyTheme(request.isDarkTheme);
     }
   });
 

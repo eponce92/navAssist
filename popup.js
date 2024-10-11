@@ -17,6 +17,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load the theme state
   chrome.storage.sync.get('isDarkTheme', function(data) {
     themeToggle.checked = data.isDarkTheme !== false; // Default to true if not set
+    const isDarkTheme = data.isDarkTheme !== false; // Default to true if not set
+    document.querySelectorAll('.theme-emoji').forEach((emoji, index) => {
+      emoji.style.opacity = index === (isDarkTheme ? 1 : 0) ? '1' : '0.3';
+    });
   });
 
   powerToggle.addEventListener('change', function() {
@@ -28,11 +32,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  // Update the theme toggle handler
   themeToggle.addEventListener('change', function() {
     const isDarkTheme = this.checked;
     chrome.storage.sync.set({isDarkTheme: isDarkTheme}, function() {
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleTheme', isDarkTheme: isDarkTheme});
+      });
+      
+      // Update emoji visibility based on the theme
+      document.querySelectorAll('.theme-emoji').forEach((emoji, index) => {
+        emoji.style.opacity = index === (isDarkTheme ? 1 : 0) ? '1' : '0.3';
       });
     });
   });
