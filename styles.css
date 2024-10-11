@@ -1,23 +1,23 @@
 :root {
-  --primary-color: #3498db;
+  --primary-color: #2980b9;
   --background-color: #ffffff;
-  --text-color: #333333;
+  --text-color: #34495e;
   --border-color: #e0e0e0;
   --shadow-color: rgba(0, 0, 0, 0.1);
   --message-bg-user: #e1f0ff;
   --message-bg-assistant: #f0f0f0;
-  --primary-color-hover: #2980b9;
+  --primary-color-hover: #3498db;
 }
 
 [data-theme="dark"] {
-  --primary-color: #4a90e2;
+  --primary-color: #2980b9;
   --background-color: #202124;
   --text-color: #e8eaed;
-  --border-color: #5f6368;
+  --border-color: #bdc3c7;
   --shadow-color: rgba(0, 0, 0, 0.3);
-  --message-bg-user: #174ea6;
-  --message-bg-assistant: #303134;
-  --primary-color-hover: #3a7cbd;
+  --message-bg-user: #2980b9;
+  --message-bg-assistant: #34495e;
+  --primary-color-hover: #3498db;
 }
 
 #chatWindow {
@@ -395,7 +395,7 @@ body.transitioning {
   font-size: 1.2em;
   margin-top: 1em;
   margin-bottom: 0.5em;
-  color: #2c3e50;
+  color: #34495e;
 }
 
 .message-content ul, .message-content ol {
@@ -408,7 +408,7 @@ body.transitioning {
 }
 
 .message-content a {
-  color: #3498db;
+  color: #2980b9;
   text-decoration: none;
 }
 
@@ -429,7 +429,7 @@ body.transitioning {
 }
 
 [data-theme="dark"] .message-content a {
-  color: #5dade2;
+  color: #2980b9;
 }
 
 /* Add these styles at the end of the file */
