@@ -1,5 +1,5 @@
 import utils from './utils.js';
-import chatWindowVisibility from './chatWindowVisibility.js';
+import * as chatWindowVisibility from './chatWindowVisibility.js';
 
 let floatingBar = null;
 let selectedText = '';
@@ -143,7 +143,7 @@ function transferSelectedTextToChat() {
       messageInput.value = selectedText;
       messageInput.focus();
     }
-    chatWindowVisibility.default.showChatWindow();
+    chatWindowVisibility.showChatWindow();
     hideFloatingBar();
   }
 }

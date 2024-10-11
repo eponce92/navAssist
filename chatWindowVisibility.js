@@ -13,7 +13,6 @@ let isChatVisible = false;
 let initialSidebarWidth = 500;
 
 function createChatWindow() {
-  console.log('Creating navAssist window');
   chatWindow = document.createElement('div');
   chatWindow.id = 'chatWindow';
   
@@ -67,8 +66,6 @@ function createChatWindow() {
   `;
   document.body.appendChild(chatWindow);
 
-  console.log('Chat window HTML structure:', chatWindow.innerHTML);
-
   // Add event listeners immediately after creating the chat window
   addEventListeners();
 
@@ -78,19 +75,49 @@ function createChatWindow() {
   // Set the chatWindow in chatWindowCore
   chatWindowCore.setChatWindow(chatWindow);
 
+  // Update the send button icon
+  chatWindowCore.updateSendButton();
+
+  // Apply the initial theme
+  chrome.storage.sync.get('isDarkTheme', function(data) {
+    chatWindowCore.applyTheme(data.isDarkTheme !== false);
+  });
+
+  // Load tab-specific settings
+  chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+    const tabId = response.tabId;
+    chrome.storage.local.get(`tabSettings_${tabId}`, function(result) {
+      const tabSettings = result[`tabSettings_${tabId}`] || {};
+      isSidebar = tabSettings.isSidebar !== undefined ? tabSettings.isSidebar : true;
+      isChatVisible = tabSettings.isChatVisible !== undefined ? tabSettings.isChatVisible : false;
+      initialSidebarWidth = tabSettings.sidebarWidth || 500;
+
+      updateChatWindowVisibility();
+    });
+  });
+
+  // Load chat history
+  chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+    const tabId = response.tabId;
+    chrome.runtime.sendMessage({action: 'getChatHistory', tabId: tabId}, function(history) {
+      if (history && history.length > 0) {
+        history.forEach(message => {
+          chatWindowCore.addMessage(message.role === 'user' ? 'User' : 'Assistant', message.content);
+        });
+      }
+    });
+  });
+
   return chatWindow;
 }
 
 function addEventListeners() {
-  console.log('Adding event listeners');
+  // console.log('Adding event listeners');  // Remove this line
   
   const sendButton = chatWindow.querySelector('#sendMessage');
   if (sendButton) {
-    sendButton.addEventListener('click', () => {
-      console.log('Send button clicked');
-      chatWindowCore.sendMessage();
-    });
-    console.log('Send button found and listener added');
+    sendButton.addEventListener('click', chatWindowCore.sendMessage);
+    // console.log('Send button found and listener added');  // Remove this line
   } else {
     console.error('Send button not found');
   }
@@ -99,12 +126,12 @@ function addEventListeners() {
   if (messageInput) {
     messageInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
-        console.log('Enter key pressed');
+        // console.log('Enter key pressed');  // Remove this line
         e.preventDefault();
         chatWindowCore.sendMessage();
       }
     });
-    console.log('Message input found and listener added');
+    // console.log('Message input found and listener added');  // Remove this line
   } else {
     console.error('Message input not found');
   }
@@ -113,31 +140,37 @@ function addEventListeners() {
   const hideButton = chatWindow.querySelector('#hideChat');
   if (hideButton) {
     hideButton.addEventListener('click', hideChatWindow);
-    console.log('Hide button listener added');
+    // console.log('Hide button listener added');  // Remove this line
   }
 
   const toggleSidebarButton = chatWindow.querySelector('#toggleSidebar');
   if (toggleSidebarButton) {
     toggleSidebarButton.addEventListener('click', toggleSidebarMode);
-    console.log('Toggle sidebar button listener added');
+    // console.log('Toggle sidebar button listener added');  // Remove this line
   }
 
   const summarizeButton = chatWindow.querySelector('#summarizeContent');
   if (summarizeButton) {
     summarizeButton.addEventListener('click', chatWindowCore.summarizePageContent);
-    console.log('Summarize button listener added');
   }
 
   const restartButton = chatWindow.querySelector('#restartChat');
   if (restartButton) {
-    restartButton.addEventListener('click', chatWindowCore.restartChat);
-    console.log('Restart button listener added');
+    restartButton.addEventListener('click', () => {
+      chatWindowCore.restartChat();
+      // Optionally, you can add a visual feedback here, like:
+      // restartButton.classList.add('restarting');
+      // setTimeout(() => restartButton.classList.remove('restarting'), 500);
+    });
   }
+
+  // Add theme change listener
+  window.matchMedia('(prefers-color-scheme: dark)').addListener(chatWindowCore.applyTheme);
 }
 
 function toggleSidebarMode() {
   isSidebar = !isSidebar;
-  chrome.storage.local.set({ isSidebar: isSidebar }); // Save the new mode
+  saveTabSettings();
   chatWindow.classList.add('transitioning');
   if (isSidebar) {
     setSidebarMode();
@@ -180,9 +213,8 @@ function hideChatWindow() {
   if (chatWindow) {
     chatWindow.style.display = 'none';
     isChatVisible = false;
-    chrome.storage.local.set({ isChatVisible: false }, () => {
-      showChatToggle();
-    });
+    saveTabSettings();
+    showChatToggle();
   }
 }
 
@@ -192,11 +224,25 @@ function showChatWindow() {
   console.log('Showing chat window');
   if (!chatWindow) {
     createChatWindow();
+  } else {
+    // Reload chat history when showing an existing chat window
+    chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+      const tabId = response.tabId;
+      chrome.runtime.sendMessage({action: 'getChatHistory', tabId: tabId}, function(history) {
+        if (history && history.length > 0) {
+          const chatMessages = chatWindow.querySelector('#chatMessages');
+          chatMessages.innerHTML = ''; // Clear existing messages
+          history.forEach(message => {
+            chatWindowCore.addMessage(message.role === 'user' ? 'User' : 'Assistant', message.content);
+          });
+        }
+      });
+    });
   }
   
   chatWindow.style.display = 'flex';
   isChatVisible = true;
-  chrome.storage.local.set({ isChatVisible: true });
+  saveTabSettings();
 
   if (isSidebar) {
     setSidebarMode();
@@ -211,13 +257,25 @@ function showChatWindow() {
   }
 }
 
+function saveTabSettings() {
+  chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+    const tabId = response.tabId;
+    const settings = {
+      isSidebar: isSidebar,
+      isChatVisible: isChatVisible,
+      sidebarWidth: initialSidebarWidth
+    };
+    chrome.storage.local.set({[`tabSettings_${tabId}`]: settings});
+  });
+}
+
 function updateChatWindowVisibility() {
   if (isExtensionActive) {
     if (isChatVisible) {
       if (chatWindow) {
         chatWindow.style.display = 'flex';
       } else {
-        chatWindowCore.createChatWindow();
+        createChatWindow();
       }
       const toggleButton = document.getElementById('showChatToggle');
       if (toggleButton) {
@@ -240,10 +298,7 @@ function updateChatWindowVisibility() {
   } else {
     removeChatWindow();
     // Remove prediction bar when extension is inactive
-    if (predictionBar) {
-      predictionBar.remove();
-      predictionBar = null;
-    }
+    predictionBar.remove();
   }
 }
 
@@ -266,9 +321,8 @@ function removeChatWindow() {
   if (toggleButton) {
     toggleButton.remove();
   }
-  if (floatingBar) {
-    floatingBar.remove();
-    floatingBar = null;
+  if (floatingBar.isFloatingBarActuallyVisible()) {
+    floatingBar.hideFloatingBar();
   }
 }
 
@@ -299,6 +353,14 @@ function showChatToggle() {
 export function handleToggleExtensionPower(isEnabled) {
   isExtensionActive = isEnabled;
   updateChatWindowVisibility();
+  saveTabSettings();
+}
+
+export function loadTabSettings(settings) {
+  isSidebar = settings.isSidebar !== undefined ? settings.isSidebar : true;
+  isChatVisible = settings.isChatVisible !== undefined ? settings.isChatVisible : false;
+  initialSidebarWidth = settings.sidebarWidth || 500;
+  updateChatWindowVisibility();
 }
 
 export default {
@@ -314,5 +376,6 @@ export default {
   showChatToggle,
   isExtensionActive,
   isChatVisible,
-  handleToggleExtensionPower
+  handleToggleExtensionPower,
+  loadTabSettings,
 };

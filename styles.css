@@ -1,4 +1,18 @@
+/* At the beginning of the file, change the default root variables */
 :root {
+  --primary-color: #3498db;
+  --background-color: #1a1a1a;
+  --text-color: #f0f0f0;
+  --border-color: #444444;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --message-bg-user: #1e3a5f;
+  --message-bg-assistant: #2c2c2c;
+  --primary-color-hover: #3498db;
+  --accent-color: #2ecc71;
+}
+
+/* Change the [data-theme="dark"] to [data-theme="light"] and adjust variables */
+[data-theme="light"] {
   --primary-color: #2980b9;
   --background-color: #ffffff;
   --text-color: #333333;
@@ -8,18 +22,6 @@
   --message-bg-assistant: #f0f2f5;
   --primary-color-hover: #3498db;
   --accent-color: #27ae60;
-}
-
-[data-theme="dark"] {
-  --primary-color: #2980b9;
-  --background-color: #1a1a1a;
-  --text-color: #f0f0f0;
-  --border-color: #444444;
-  --shadow-color: rgba(0, 0, 0, 0.3);
-  --message-bg-user: #1e3a5f;
-  --message-bg-assistant: #2c2c2c;
-  --primary-color-hover: #3498db;
-  --accent-color: #2ecc71;
 }
 
 #chatWindow {

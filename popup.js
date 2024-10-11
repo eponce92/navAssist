@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const modelSelect = document.getElementById('modelSelect');
   const statusIndicator = document.getElementById('statusIndicator');
   const connectionStatus = document.getElementById('connectionStatus');
-  const downloadSection = document.querySelector('.download-section');
+  const downloadSection = document.getElementById('downloadSection');
+  const themeToggle = document.getElementById('themeToggle');
 
   // Check Ollama connection
   checkOllamaConnection();
@@ -13,11 +14,25 @@ document.addEventListener('DOMContentLoaded', function() {
     powerToggle.checked = data.isExtensionActive !== false;
   });
 
+  // Load the theme state
+  chrome.storage.sync.get('isDarkTheme', function(data) {
+    themeToggle.checked = data.isDarkTheme !== false; // Default to true if not set
+  });
+
   powerToggle.addEventListener('change', function() {
     const isActive = this.checked;
     chrome.storage.local.set({isExtensionActive: isActive}, function() {
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleExtensionPower', isEnabled: isActive});
+      });
+    });
+  });
+
+  themeToggle.addEventListener('change', function() {
+    const isDarkTheme = this.checked;
+    chrome.storage.sync.set({isDarkTheme: isDarkTheme}, function() {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleTheme', isDarkTheme: isDarkTheme});
       });
     });
   });
@@ -121,7 +136,7 @@ function updateModelSelect(models) {
 }
 
 function updateDownloadButtons(models) {
-  const downloadSection = document.querySelector('.download-section');
+  const downloadSection = document.getElementById('downloadSection');
   const buttons = downloadSection.querySelectorAll('.download-button');
   let allModelsDownloaded = true;
 
@@ -136,15 +151,11 @@ function updateDownloadButtons(models) {
     }
   });
 
-  // Remove the header if all suggested models are downloaded
-  const sectionTitle = downloadSection.querySelector('.section-title');
+  // Show or hide the download section based on available models
   if (allModelsDownloaded) {
-    if (sectionTitle) {
-      sectionTitle.remove();
-    }
-    downloadSection.style.display = 'none'; // Hide the entire section
+    downloadSection.style.display = 'none';
   } else {
-    downloadSection.style.display = 'block'; // Show the section if there are models to download
+    downloadSection.style.display = 'block';
   }
 }
 

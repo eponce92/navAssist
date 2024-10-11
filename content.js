@@ -24,8 +24,17 @@
     });
 
     console.log('DOM is ready, creating chat window');
-    const chatWindow = chatWindowVisibility.default.createChatWindow();
+    const chatWindow = await chatWindowVisibility.default.createChatWindow();
     console.log('Chat window created:', chatWindow);
+
+    // Load tab-specific settings
+    chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+      const tabId = response.tabId;
+      chrome.storage.local.get(`tabSettings_${tabId}`, function(result) {
+        const tabSettings = result[`tabSettings_${tabId}`] || {};
+        chatWindowVisibility.default.loadTabSettings(tabSettings);
+      });
+    });
 
     completeInitialization();
   }
@@ -43,7 +52,7 @@
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('selectionchange', handleSelectionChange);
     document.addEventListener('keydown', handleKeyDown);
-    window.matchMedia('(prefers-color-scheme: dark)').addListener(chatWindowCore.default.applyTheme);
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(chatWindowCore.applyTheme);
     document.addEventListener('visibilitychange', handleVisibilityChange);
   }
 
@@ -157,6 +166,11 @@
     console.log('Show chat window button clicked');
     chatWindowVisibility.default.showChatWindow();
     
+    // Apply theme after showing the window
+    chrome.storage.sync.get('isDarkTheme', function(data) {
+      chatWindowCore.applyTheme(data.isDarkTheme !== false);
+    });
+    
     // Enable dragging and resizing if in popup mode
     if (!chatWindowVisibility.default.isSidebar) {
       const chatWindow = document.querySelector('#chatWindow');
@@ -178,6 +192,9 @@
     if (request.action === 'getPageContent') {
       const pageContent = document.body.innerText;
       sendResponse(pageContent);
+    }
+    if (request.action === 'toggleTheme') {
+      chatWindowCore.applyTheme(request.isDarkTheme);
     }
   });
 

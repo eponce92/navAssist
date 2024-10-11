@@ -1,26 +1,12 @@
 let chatHistories = {};
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'sendMessage') {
-    // Process the message and get the response from the AI model
-    // Then send back the response in chunks
-    sendResponse({success: true}); // Acknowledge receipt of the message
-    
-    // Simulate streaming response (replace this with actual AI model interaction)
-    setTimeout(() => {
-      chrome.tabs.sendMessage(sender.tab.id, {
-        action: 'streamResponse',
-        reply: 'Hello! How can I assist you today?',
-        done: true
-      });
-    }, 1000);
-    
-    return true; // Indicates that the response will be sent asynchronously
-  }
-  
   const tabId = sender.tab ? sender.tab.id : 'popup';
 
   switch (request.action) {
+    case 'sendMessage':
+      handleSendMessage(request, sender, tabId);
+      return true;
     case 'clearChatHistory':
       clearChatHistory(tabId);
       sendResponse({success: true});
@@ -42,6 +28,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return false;
     case 'getExtensionState':
       handleGetExtensionState(sendResponse);
+      return true;
+    case 'getTabId':
+      sendResponse({tabId: sender.tab.id});
       return true;
   }
 });
@@ -189,10 +178,11 @@ function clearChatHistory(tabId) {
   chrome.storage.local.remove(`chatHistory_${tabId}`);
 }
 
-chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
-  clearChatHistory(tabId);
-  console.log(`Chat history for tab ${tabId} has been removed.`);
-});
+// Remove this listener to prevent clearing chat history when a tab is closed
+// chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+//   clearChatHistory(tabId);
+//   console.log(`Chat history for tab ${tabId} has been removed.`);
+// });
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({isExtensionActive: true});

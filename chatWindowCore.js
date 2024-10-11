@@ -52,7 +52,7 @@ export function sendMessage() {
   }
 }
 
-function addMessage(sender, text) {
+export function addMessage(sender, text) {
   if (!chatWindow) {
     console.error('Chat window not initialized');
     return;
@@ -108,12 +108,65 @@ function createCopyButton() {
   return button;
 }
 
+export function applyTheme(isDarkTheme) {
+  chatWindow.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
+}
+
 export function summarizePageContent() {
-  // Implement summarize functionality
+  console.log('Summarizing page content');
+  const assistantMessageElement = addMessage('Assistant', 'Summarizing page content...');
+  const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
+  let accumulatedSummary = '';
+  
+  chrome.runtime.sendMessage({action: 'summarizeContent'}, function(response) {
+    if (chrome.runtime.lastError) {
+      console.error('Error summarizing content:', chrome.runtime.lastError);
+      assistantMessageContent.innerHTML = 'Error: Unable to summarize content. Please try again.';
+      return;
+    }
+  });
+
+  chrome.runtime.onMessage.addListener(function summaryHandler(message) {
+    if (message.action === 'streamResponse') {
+      if (message.reply) {
+        accumulatedSummary += message.reply;
+        assistantMessageContent.innerHTML = utils.markdownToHtml(accumulatedSummary);
+        const chatMessages = chatWindow.querySelector('#chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      if (message.done) {
+        addCopyButton(assistantMessageElement, accumulatedSummary);
+        chrome.runtime.onMessage.removeListener(summaryHandler);
+      }
+    }
+  });
 }
 
 export function restartChat() {
-  // Implement restart chat functionality
+  console.log('Restarting chat');
+  const chatMessages = chatWindow.querySelector('#chatMessages');
+  chatMessages.innerHTML = '';
+  chrome.runtime.sendMessage({action: 'clearChatHistory'}, response => {
+    if (!response.success) {
+      console.error('Failed to clear chat history');
+    }
+  });
+}
+
+export function updateSendButton() {
+  const sendButton = chatWindow.querySelector('#sendMessage');
+  if (sendButton) {
+    sendButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="19" x2="12" y2="5"></line>
+        <polyline points="5 12 12 5 19 12"></polyline>
+      </svg>
+    `;
+    sendButton.style.display = 'flex';
+    sendButton.style.alignItems = 'center';
+    sendButton.style.justifyContent = 'center';
+  }
 }
 
 export default {
@@ -121,4 +174,7 @@ export default {
   sendMessage,
   summarizePageContent,
   restartChat,
+  applyTheme,
+  addMessage,
+  updateSendButton,
 };
