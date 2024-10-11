@@ -7,52 +7,58 @@
   <style>
     body {
       font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-      width: 300px;
+      width: 320px;
       margin: 0;
-      padding: 15px;
+      padding: 20px;
       background-color: #f0f2f5;
     }
     .card {
       background-color: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .card-content {
+      padding: 20px;
     }
     .title-container {
       display: flex;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 20px;
     }
     .title-container img {
-      width: 24px;
-      height: 24px;
-      margin-right: 10px;
+      width: 32px;
+      height: 32px;
+      margin-right: 12px;
     }
     h1 {
-      font-size: 18px;
+      font-size: 24px;
       font-weight: 600;
       color: #1a1a1a;
       margin: 0;
     }
     .section {
-      margin-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    .section:last-child {
+      margin-bottom: 0;
     }
     .section-title {
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 600;
       color: #4a4a4a;
-      margin-bottom: 5px;
+      margin-bottom: 8px;
     }
     select, button {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid #e0e0e0;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 14px;
       background-color: #ffffff;
     }
     button {
-      background-color: #2980b9;
+      background-color: #3F51B5;
       color: white;
       border: none;
       cursor: pointer;
@@ -60,7 +66,7 @@
       font-weight: 600;
     }
     button:hover {
-      background-color: #3498db;
+      background-color: #303F9F;
     }
     .toggle-container {
       display: flex;
@@ -70,8 +76,8 @@
     .switch {
       position: relative;
       display: inline-block;
-      width: 40px;
-      height: 20px;
+      width: 52px;
+      height: 28px;
     }
     .switch input {
       opacity: 0;
@@ -87,85 +93,103 @@
       bottom: 0;
       background-color: #ccc;
       transition: .4s;
-      border-radius: 20px;
+      border-radius: 28px;
     }
     .slider:before {
       position: absolute;
       content: "";
-      height: 16px;
-      width: 16px;
-      left: 2px;
-      bottom: 2px;
+      height: 20px;
+      width: 20px;
+      left: 4px;
+      bottom: 4px;
       background-color: white;
       transition: .4s;
       border-radius: 50%;
     }
     input:checked + .slider {
-      background-color: #2980b9;
+      background-color: #3F51B5;
     }
     input:checked + .slider:before {
-      transform: translateX(20px);
+      transform: translateX(24px);
     }
     .connection-status {
       display: flex;
       align-items: center;
-      margin-bottom: 10px;
-      font-size: 12px;
+      font-size: 14px;
+      margin-bottom: 20px;
     }
     .status-indicator {
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
-      margin-right: 5px;
+      margin-right: 8px;
     }
     .status-connected {
-      background-color: #27ae60;
+      background-color: #4CAF50;
     }
     .status-disconnected {
-      background-color: #e74c3c;
+      background-color: #F44336;
+    }
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .theme-emoji {
+      font-size: 24px;
+      margin: 0 12px;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="title-container">
-      <img src="icon-128.png" alt="navAssist Icon">
-      <h1>navAssist</h1>
-    </div>
-    <div class="connection-status">
-      <div id="statusIndicator" class="status-indicator"></div>
-      <span id="connectionStatus">Checking Ollama connection...</span>
-    </div>
-    <div class="section">
-      <div class="section-title">Select Model</div>
-      <select id="modelSelect">
-        <option value="">Loading models...</option>
-      </select>
-    </div>
-    <div class="section">
-      <div class="toggle-container">
-        <span class="section-title">Enable navAssist</span>
-        <label class="switch">
-          <input type="checkbox" id="powerToggle">
-          <span class="slider"></span>
-        </label>
+    <div class="card-content">
+      <div class="title-container">
+        <img src="icon-128.png" alt="navAssist Icon">
+        <h1>navAssist</h1>
       </div>
-    </div>
-    <div class="section">
-      <div class="toggle-container">
-        <span class="section-title">Dark Theme</span>
-        <label class="switch">
-          <input type="checkbox" id="themeToggle" checked>
-          <span class="slider"></span>
-        </label>
+      
+      <div class="connection-status">
+        <div id="statusIndicator" class="status-indicator"></div>
+        <span id="connectionStatus">Checking Ollama connection...</span>
       </div>
-    </div>
-    <div class="section">
-      <button id="reloadExtension">Reload Extension</button>
-    </div>
-    <div id="downloadSection" class="section" style="display: none;">
-      <div class="section-title">Download Suggested Models</div>
-      <!-- Download buttons will be dynamically added here -->
+
+      <div class="section">
+        <div class="section-title">Select Model</div>
+        <select id="modelSelect">
+          <option value="">Loading models...</option>
+        </select>
+      </div>
+
+      <div class="section">
+        <div class="toggle-container">
+          <span class="section-title">Enable navAssist</span>
+          <label class="switch">
+            <input type="checkbox" id="powerToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="theme-toggle">
+          <span class="theme-emoji">🌞</span>
+          <label class="switch">
+            <input type="checkbox" id="themeToggle" checked>
+            <span class="slider round"></span>
+          </label>
+          <span class="theme-emoji">🌙</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <button id="reloadExtension">Reload Extension</button>
+      </div>
+
+      <div id="downloadSection" class="section" style="display: none;">
+        <div class="section-title">Download Suggested Models</div>
+        <!-- Download buttons will be dynamically added here -->
+      </div>
     </div>
   </div>
   <script src="popup.js"></script>

@@ -109,7 +109,49 @@ function createCopyButton() {
 }
 
 export function applyTheme(isDarkTheme) {
-  chatWindow.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
+  if (chatWindow) {
+    const theme = isDarkTheme ? 'dark' : 'light';
+    chatWindow.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    console.log('Theme applied to chatWindow:', theme);
+    
+    // Force a repaint to ensure the theme is applied
+    chatWindow.style.display = 'none';
+    chatWindow.offsetHeight; // Trigger a reflow
+    chatWindow.style.display = 'flex';
+    
+    // Update specific elements
+    updateElementColors(theme);
+  }
+}
+
+function updateElementColors(theme) {
+  const header = chatWindow.querySelector('#chatHeader');
+  const messages = chatWindow.querySelectorAll('.message');
+  const input = chatWindow.querySelector('#messageInput');
+  const sendButton = chatWindow.querySelector('#sendMessage');
+
+  // Use the same primary color for both themes
+  header.style.backgroundColor = '#3F51B5';
+
+  if (theme === 'dark') {
+    input.style.backgroundColor = '#2C2C2C';
+    input.style.color = '#E0E0E0';
+    sendButton.style.backgroundColor = '#3F51B5';
+  } else {
+    input.style.backgroundColor = '#FFFFFF';
+    input.style.color = '#333333';
+    sendButton.style.backgroundColor = '#3F51B5';
+  }
+
+  messages.forEach(message => {
+    if (message.classList.contains('user-message')) {
+      message.style.backgroundColor = theme === 'dark' ? '#303F9F' : '#E8EAF6';
+    } else {
+      message.style.backgroundColor = theme === 'dark' ? '#2C2C2C' : '#F5F5F5';
+    }
+    message.style.color = theme === 'dark' ? '#E0E0E0' : '#333333';
+  });
 }
 
 export function summarizePageContent() {
