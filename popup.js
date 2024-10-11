@@ -123,6 +123,7 @@ function updateModelSelect(models) {
 function updateDownloadButtons(models) {
   const downloadSection = document.querySelector('.download-section');
   const buttons = downloadSection.querySelectorAll('.download-button');
+  let allModelsDownloaded = true;
 
   buttons.forEach(button => {
     const modelName = button.dataset.model;
@@ -131,8 +132,20 @@ function updateDownloadButtons(models) {
       button.remove();
     } else {
       button.disabled = false;
+      allModelsDownloaded = false;
     }
   });
+
+  // Remove the header if all suggested models are downloaded
+  const sectionTitle = downloadSection.querySelector('.section-title');
+  if (allModelsDownloaded) {
+    if (sectionTitle) {
+      sectionTitle.remove();
+    }
+    downloadSection.style.display = 'none'; // Hide the entire section
+  } else {
+    downloadSection.style.display = 'block'; // Show the section if there are models to download
+  }
 }
 
 function createDownloadButton(modelName) {
