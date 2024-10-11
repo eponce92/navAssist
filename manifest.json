@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
   "name": "navAssist",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "An AI-powered assistant for web navigation and content interaction.",
   "permissions": [
     "storage",
-    "activeTab",
+    "activeTab"
+  ],
+  "host_permissions": [
     "http://localhost:11434/"
   ],
   "action": {
@@ -33,7 +35,15 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icon.png"],
+      "resources": [
+        "utils.js",
+        "chatWindowCore.js",
+        "chatWindowUI.js",
+        "chatWindowVisibility.js",
+        "floatingBar.js",
+        "predictionBar.js",
+        "icon.png"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

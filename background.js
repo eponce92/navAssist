@@ -1,38 +1,46 @@
 let chatHistories = {};
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  const tabId = sender.tab.id;
+  const tabId = sender.tab ? sender.tab.id : 'popup';
 
-  if (request.action === 'sendMessage') {
-    handleSendMessage(request, sender, tabId);
-    return true;
-  } else if (request.action === 'clearChatHistory') {
-    clearChatHistory(tabId);
-    sendResponse({success: true});
-    return true;
-  } else if (request.action === 'summarizeContent') {
-    handleSummarizeContent(sender, tabId);
-    return true;
-  } else if (request.action === 'getChatHistory') {
-    getChatHistory(tabId, sendResponse);
-    return true;
-  } else if (request.action === 'fixGrammar') {
-    handleFixGrammar(request.prompt, sender.tab.id, sendResponse);
-    return true; // Indicates that the response will be sent asynchronously
-  } else if (request.action === 'getPrediction') {
-    handleGetPrediction(request.prompt, sender.tab.id, sendResponse);
-    return true; // Indicates that the response will be sent asynchronously
+  switch (request.action) {
+    case 'sendMessage':
+      handleSendMessage(request, sender, tabId);
+      return true; // Indicates that the response will be sent asynchronously
+    case 'clearChatHistory':
+      clearChatHistory(tabId);
+      sendResponse({success: true});
+      return false;
+    case 'summarizeContent':
+      handleSummarizeContent(sender, tabId);
+      return true;
+    case 'getChatHistory':
+      getChatHistory(tabId, sendResponse);
+      return true;
+    case 'fixGrammar':
+      handleFixGrammar(request.prompt, tabId, sendResponse);
+      return true;
+    case 'getPrediction':
+      handleGetPrediction(request.prompt, tabId, sendResponse);
+      return true;
+    case 'toggleExtensionPower':
+      handleToggleExtensionPower(request.isEnabled, sender.tab.id);
+      return false;
+    case 'getExtensionState':
+      handleGetExtensionState(sendResponse);
+      return true;
   }
 });
 
 function handleSendMessage(request, sender, tabId) {
+  console.log('Handling send message request:', request);
   chrome.storage.sync.get('selectedModel', (data) => {
     const model = data.selectedModel || 'llama3.2';
     
     getChatHistory(tabId, (history) => {
       history.push({ role: 'user', content: request.message });
       saveChatHistory(tabId, history);
-      streamResponse(model, history, sender.tab.id, true);
+      streamResponse(model, history, tabId, true);
     });
   });
 }
@@ -73,7 +81,7 @@ function handleSummarizeContent(sender, tabId) {
       getChatHistory(tabId, (history) => {
         history.push({ role: 'user', content: 'Please summarize the content of this page.' });
         saveChatHistory(tabId, history);
-        streamResponse(model, [...history, { role: 'user', content: prompt }], sender.tab.id, true);
+        streamResponse(model, [...history, { role: 'user', content: prompt }], tabId, true);
       });
     });
   });
@@ -115,9 +123,6 @@ function streamResponse(model, messages, tabId, updateChatHistory) {
           
           console.log('Final raw response:', accumulatedResponse);
           chrome.tabs.sendMessage(tabId, {action: 'logFinalResponse', response: accumulatedResponse});
-          
-          // Add this line to log the text after completion
-          console.log('Text after completion:', accumulatedResponse);
           
           return;
         }
@@ -170,7 +175,6 @@ function clearChatHistory(tabId) {
   chrome.storage.local.remove(`chatHistory_${tabId}`);
 }
 
-// Clean up chat histories when tabs are closed
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   clearChatHistory(tabId);
   console.log(`Chat history for tab ${tabId} has been removed.`);
@@ -180,7 +184,16 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({isExtensionActive: true});
 });
 
-// Add this new function to handle the grammar fixing
+chrome.tabs.onCreated.addListener((tab) => {
+  chrome.storage.local.get('isExtensionActive', (data) => {
+    const isActive = data.isExtensionActive !== false; // Default to true if not set
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'toggleExtensionPower',
+      isEnabled: isActive
+    });
+  });
+});
+
 function handleFixGrammar(prompt, tabId, sendResponse) {
   chrome.storage.sync.get('selectedModel', (data) => {
     const model = data.selectedModel || 'llama3.2';
@@ -210,7 +223,6 @@ function handleFixGrammar(prompt, tabId, sendResponse) {
   });
 }
 
-// Modify the handleGetPrediction function
 function handleGetPrediction(prompt, tabId, sendResponse) {
   chrome.storage.sync.get('selectedModel', (data) => {
     const model = data.selectedModel || 'llama3.2';
@@ -239,3 +251,30 @@ function handleGetPrediction(prompt, tabId, sendResponse) {
     });
   });
 }
+
+function handleToggleExtensionPower(isEnabled, tabId) {
+  chrome.storage.local.set({ isExtensionActive: isEnabled }, () => {
+    chrome.tabs.sendMessage(tabId, {
+      action: 'toggleExtensionPower',
+      isEnabled: isEnabled
+    });
+  });
+}
+
+function handleGetExtensionState(sendResponse) {
+  chrome.storage.local.get('isExtensionActive', (result) => {
+    sendResponse({ isExtensionActive: result.isExtensionActive !== false });
+  });
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete') {
+    chrome.storage.local.get('isExtensionActive', (result) => {
+      const isActive = result.isExtensionActive !== false;
+      chrome.tabs.sendMessage(tabId, {
+        action: 'toggleExtensionPower',
+        isEnabled: isActive
+      });
+    });
+  }
+});
