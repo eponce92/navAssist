@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const modelSelect = document.getElementById('modelSelect');
   const statusIndicator = document.getElementById('statusIndicator');
   const connectionStatus = document.getElementById('connectionStatus');
-  const downloadSection = document.querySelector('.download-section');
+  const downloadSection = document.getElementById('downloadSection');
+  const themeToggle = document.getElementById('themeToggle');
 
   // Check Ollama connection
   checkOllamaConnection();
@@ -13,11 +14,25 @@ document.addEventListener('DOMContentLoaded', function() {
     powerToggle.checked = data.isExtensionActive !== false;
   });
 
+  // Load the theme state
+  chrome.storage.sync.get('isDarkTheme', function(data) {
+    themeToggle.checked = data.isDarkTheme !== false; // Default to true if not set
+  });
+
   powerToggle.addEventListener('change', function() {
     const isActive = this.checked;
     chrome.storage.local.set({isExtensionActive: isActive}, function() {
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleExtensionPower', isEnabled: isActive});
+      });
+    });
+  });
+
+  themeToggle.addEventListener('change', function() {
+    const isDarkTheme = this.checked;
+    chrome.storage.sync.set({isDarkTheme: isDarkTheme}, function() {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleTheme', isDarkTheme: isDarkTheme});
       });
     });
   });
@@ -37,8 +52,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Create download buttons for suggested models
   const suggestedModels = ['llama3.2:latest', 'qwen2.5:latest', 'qwen2.5:3b'];
   suggestedModels.forEach(model => {
-    const button = createDownloadButton(model);
-    downloadSection.appendChild(button);
+    const item = createDownloadButton(model);
+    downloadSection.appendChild(item);
   });
 
   // Fetch available models and update UI
@@ -121,53 +136,62 @@ function updateModelSelect(models) {
 }
 
 function updateDownloadButtons(models) {
-  const downloadSection = document.querySelector('.download-section');
-  const buttons = downloadSection.querySelectorAll('.download-button');
+  const downloadSection = document.getElementById('downloadSection');
+  const downloadItems = downloadSection.querySelectorAll('.download-item');
   let allModelsDownloaded = true;
 
-  buttons.forEach(button => {
-    const modelName = button.dataset.model;
+  downloadItems.forEach(item => {
+    const modelName = item.dataset.model;
     const isDownloaded = models.some(model => model.name === modelName);
     if (isDownloaded) {
-      button.remove();
+      item.remove();
     } else {
-      button.disabled = false;
       allModelsDownloaded = false;
     }
   });
 
-  // Remove the header if all suggested models are downloaded
-  const sectionTitle = downloadSection.querySelector('.section-title');
+  // Show or hide the download section based on available models
   if (allModelsDownloaded) {
-    if (sectionTitle) {
-      sectionTitle.remove();
-    }
-    downloadSection.style.display = 'none'; // Hide the entire section
+    downloadSection.style.display = 'none';
   } else {
-    downloadSection.style.display = 'block'; // Show the section if there are models to download
+    downloadSection.style.display = 'block';
   }
 }
 
 function createDownloadButton(modelName) {
-  const button = document.createElement('button');
-  button.className = 'download-button';
-  button.dataset.model = modelName;
-  button.innerHTML = `
-    <span class="button-text">Download ${modelName}</span>
-    <div class="spinner"></div>
+  const item = document.createElement('div');
+  item.className = 'download-item';
+  item.dataset.model = modelName;
+  item.innerHTML = `
+    <span class="model-name">${modelName}</span>
+    <button class="download-button">Download</button>
+    <div class="progress-container" style="display: none;">
+      <div class="progress-bar">
+        <div class="progress"></div>
+      </div>
+      <span class="status">Preparing download...</span>
+    </div>
   `;
-  button.addEventListener('click', () => downloadModel(modelName));
-  return button;
+  item.querySelector('.download-button').addEventListener('click', () => downloadModel(modelName));
+  return item;
 }
 
 function downloadModel(modelName) {
-  const button = document.querySelector(`.download-button[data-model="${modelName}"]`);
-  const spinner = button.querySelector('.spinner');
-  const buttonText = button.querySelector('.button-text');
+  console.log('%c[navAssist] Starting download for model: ' + modelName, 'color: #2980b9; font-weight: bold;');
 
-  button.disabled = true;
-  spinner.style.display = 'inline-block';
-  buttonText.textContent = 'Downloading...';
+  const downloadItem = document.querySelector(`.download-item[data-model="${modelName}"]`);
+  const button = downloadItem.querySelector('.download-button');
+  const progressContainer = downloadItem.querySelector('.progress-container');
+  const progress = downloadItem.querySelector('.progress');
+  const status = downloadItem.querySelector('.status');
+
+  button.style.display = 'none';
+  progressContainer.style.display = 'block';
+  status.textContent = 'Preparing download...';
+  progress.style.width = '0%';
+
+  console.log('%c[navAssist] Download UI updated: Button hidden, progress container shown', 'color: #2980b9;');
+  console.log('%c[navAssist] Initial progress bar width: ' + progress.style.width, 'color: #2980b9;');
 
   fetch('http://localhost:11434/api/pull', {
     method: 'POST',
@@ -177,15 +201,19 @@ function downloadModel(modelName) {
     body: JSON.stringify({ name: modelName, stream: true }),
   })
     .then(response => {
+      console.log('%c[navAssist] Fetch response received', 'color: #2980b9;');
       const reader = response.body.getReader();
       let accumulatedData = '';
 
       function readStream() {
         reader.read().then(({ done, value }) => {
           if (done) {
-            console.log('Download complete');
-            button.remove();
-            fetchModels(); // Refresh the model list
+            console.log('%c[navAssist] Download stream complete', 'color: #2980b9; font-weight: bold;');
+            updateDownloadStatus(downloadItem, { status: 'success' });
+            setTimeout(() => {
+              downloadItem.remove();
+              fetchModels(); // Refresh the model list
+            }, 2000);
             return;
           }
 
@@ -195,58 +223,76 @@ function downloadModel(modelName) {
 
           lines.forEach(line => {
             if (line.trim() !== '') {
-              const data = JSON.parse(line);
-              updateDownloadStatus(button, data);
+              try {
+                const data = JSON.parse(line);
+                console.log('%c[navAssist] Received data:', 'color: #2980b9;', data);
+                updateDownloadStatus(downloadItem, data);
+              } catch (error) {
+                console.error('%c[navAssist] Error parsing JSON:', 'color: #e74c3c;', error);
+              }
             }
           });
 
           readStream();
         }).catch(error => {
-          console.error('Stream reading error:', error);
-          buttonText.textContent = 'Download failed';
-          button.disabled = false;
-          spinner.style.display = 'none';
+          console.error('%c[navAssist] Stream reading error:', 'color: #e74c3c;', error);
+          status.textContent = 'Download failed. Please try again.';
+          button.style.display = 'block';
+          progressContainer.style.display = 'none';
         });
       }
 
       readStream();
     })
     .catch(error => {
-      console.error('Error initiating download:', error);
-      buttonText.textContent = 'Download failed';
-      button.disabled = false;
-      spinner.style.display = 'none';
+      console.error('%c[navAssist] Error initiating download:', 'color: #e74c3c;', error);
+      status.textContent = 'Download failed. Please try again.';
+      button.style.display = 'block';
+      progressContainer.style.display = 'none';
     });
 }
 
-function updateDownloadStatus(button, data) {
-  const buttonText = button.querySelector('.button-text');
-  switch (data.status) {
-    case 'pulling manifest':
-      buttonText.textContent = 'Pulling manifest...';
-      break;
-    case 'downloading':
-      if (data.total && data.completed) {
-        const progress = ((data.completed / data.total) * 100).toFixed(2);
-        buttonText.textContent = `Downloading: ${progress}%`;
-      } else {
-        buttonText.textContent = 'Downloading...';
-      }
-      break;
-    case 'verifying sha256 digest':
-      buttonText.textContent = 'Verifying...';
-      break;
-    case 'writing manifest':
-      buttonText.textContent = 'Writing manifest...';
-      break;
-    case 'removing any unused layers':
-      buttonText.textContent = 'Cleaning up...';
-      break;
-    case 'success':
-      buttonText.textContent = 'Download successful!';
-      break;
-    default:
-      buttonText.textContent = `Status: ${data.status}`;
+function updateDownloadStatus(downloadItem, data) {
+  const status = downloadItem.querySelector('.status');
+  const progress = downloadItem.querySelector('.progress');
+
+  console.log('%c[navAssist] Updating download status:', 'color: #2980b9;', data);
+
+  if (data.status === 'downloading' && data.total && data.completed) {
+    const percentage = Math.floor((data.completed / data.total) * 100);
+    const roundedPercentage = Math.floor(percentage / 25) * 25;
+    
+    status.textContent = `Downloading... ${percentage}%`;
+    progress.style.width = `${percentage}%`;
+    
+    // Log only at 25% increments
+    if (percentage >= roundedPercentage && roundedPercentage <= 100) {
+      console.log('%c[navAssist] Download progress: ' + roundedPercentage + '%', 'color: #2980b9; font-weight: bold;');
+      
+      // Update the last logged percentage
+      downloadItem.dataset.lastLoggedPercentage = roundedPercentage;
+    }
+  } else {
+    switch (data.status) {
+      case 'pulling manifest':
+        status.textContent = 'Preparing download...';
+        progress.style.width = '5%';
+        console.log('%c[navAssist] Download progress: 0%', 'color: #2980b9; font-weight: bold;');
+        break;
+      case 'verifying sha256 digest':
+      case 'writing manifest':
+      case 'removing any unused layers':
+        status.textContent = 'Finalizing download...';
+        progress.style.width = '95%';
+        break;
+      case 'success':
+        status.textContent = 'Download complete!';
+        progress.style.width = '100%';
+        console.log('%c[navAssist] Download progress: 100%', 'color: #2980b9; font-weight: bold;');
+        break;
+      default:
+        status.textContent = 'Downloading...';
+    }
   }
 }
 
