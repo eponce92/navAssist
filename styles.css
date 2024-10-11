@@ -1,109 +1,117 @@
 :root {
   --primary-color: #2980b9;
   --background-color: #ffffff;
-  --text-color: #34495e;
+  --text-color: #333333;
   --border-color: #e0e0e0;
   --shadow-color: rgba(0, 0, 0, 0.1);
-  --message-bg-user: #e1f0ff;
-  --message-bg-assistant: #f0f0f0;
+  --message-bg-user: #e8f5fe;
+  --message-bg-assistant: #f0f2f5;
   --primary-color-hover: #3498db;
+  --accent-color: #27ae60;
 }
 
 [data-theme="dark"] {
   --primary-color: #2980b9;
-  --background-color: #202124;
-  --text-color: #e8eaed;
-  --border-color: #bdc3c7;
+  --background-color: #1a1a1a;
+  --text-color: #f0f0f0;
+  --border-color: #444444;
   --shadow-color: rgba(0, 0, 0, 0.3);
-  --message-bg-user: #2980b9;
-  --message-bg-assistant: #34495e;
+  --message-bg-user: #1e3a5f;
+  --message-bg-assistant: #2c2c2c;
   --primary-color-hover: #3498db;
+  --accent-color: #2ecc71;
 }
 
 #chatWindow {
   position: fixed;
-  width: 350px;
-  height: 500px;
+  width: 380px;
+  height: 600px;
   background-color: var(--background-color);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 8px 16px var(--shadow-color);
-  z-index: 2147483647; /* Maximum z-index value */
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px var(--shadow-color);
+  z-index: 2147483647;
   display: flex;
   flex-direction: column;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
   color: var(--text-color);
-  transition: none;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 #chatWindow.dragging {
   transition: none !important;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 #chatHeader {
   background-color: var(--primary-color);
   color: white;
-  padding: 0;
-  font-weight: bold;
+  padding: 15px 20px;
+  font-weight: 600;
   user-select: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 16px;
+  font-size: 18px;
+  border-bottom: none;
 }
 
 #dragHandle {
   display: flex;
   align-items: center;
-  padding: 15px;
   cursor: move;
   flex-grow: 1;
 }
 
 #chatIcon {
-  width: 24px;
-  height: 24px;
-  margin-right: 10px;
+  width: 28px;
+  height: 28px;
+  margin-right: 12px;
 }
 
-#chatHeader span {
-  flex-grow: 1;
-  /* Styles for the navAssist title */
+.chat-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-#restartChat {
-  background-color: transparent;
+.chat-controls button {
+  background-color: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
   cursor: pointer;
-  font-size: 18px;
-  padding: 0 5px;
-  transition: transform 0.2s ease;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
-#restartChat:hover {
-  transform: scale(1.1);
+.chat-controls button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
 }
 
-#restartChat svg {
-  width: 18px;
-  height: 18px;
+.chat-controls button svg {
+  width: 20px;
+  height: 20px;
 }
 
 #chatMessages {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 15px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 15px;
+  background-color: var(--background-color);
 }
 
 #chatInput {
   display: flex;
-  padding: 15px;
+  padding: 15px 20px;
   background-color: var(--background-color);
   border-top: 1px solid var(--border-color);
 }
@@ -111,13 +119,13 @@
 #messageInput {
   flex-grow: 1;
   border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 10px 15px;
-  font-size: 14px;
+  border-radius: 24px;
+  padding: 12px 20px;
+  font-size: 16px;
   resize: none;
-  max-height: 100px;
+  max-height: 120px;
   overflow-y: auto;
-  transition: border-color 0.3s ease;
+  transition: all 0.3s ease;
   background-color: var(--background-color);
   color: var(--text-color);
 }
@@ -125,6 +133,7 @@
 #messageInput:focus {
   outline: none;
   border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.2);
 }
 
 #sendMessage {
@@ -132,40 +141,50 @@
   color: white;
   border: none;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  margin-left: 10px;
+  width: 48px;
+  height: 48px;
+  margin-left: 12px;
   cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 #sendMessage:hover {
-  filter: brightness(1.1);
+  background-color: var(--primary-color-hover);
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+#sendMessage svg {
+  width: 24px;
+  height: 24px;
 }
 
 .message {
-  max-width: 80%;
-  padding: 10px 15px;
+  max-width: 85%;
+  padding: 12px 18px;
   border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 15px;
+  line-height: 1.5;
   position: relative;
+  box-shadow: 0 1px 2px var(--shadow-color);
 }
 
 .user-message {
   align-self: flex-end;
   background-color: var(--message-bg-user);
   color: var(--text-color);
+  border-bottom-right-radius: 4px;
 }
 
 .assistant-message {
   align-self: flex-start;
   background-color: var(--message-bg-assistant);
   color: var(--text-color);
-  padding-right: 30px;
+  border-bottom-left-radius: 4px;
 }
 
 #resizeHandle {
@@ -184,27 +203,32 @@
 }
 
 #chatMessages::-webkit-scrollbar-track {
-  background: var(--background-color);
+  background: transparent;
 }
 
 #chatMessages::-webkit-scrollbar-thumb {
-  background-color: var(--primary-color);
+  background-color: rgba(41, 128, 185, 0.3);
   border-radius: 3px;
 }
 
-/* Add these styles at the end of the file */
+#chatMessages::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(41, 128, 185, 0.5);
+}
 
 .copy-button {
   position: absolute;
-  top: 5px;
-  right: 5px;
+  top: 8px;
+  right: 8px;
   background-color: transparent;
   border: none;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.3s ease;
-  padding: 2px;
-  border-radius: 4px;
+  transition: all 0.3s ease;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .message:hover .copy-button {
@@ -212,125 +236,73 @@
 }
 
 .copy-button:hover {
-  background-color: var(--border-color);
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 .copy-button svg {
   width: 16px;
   height: 16px;
   color: var(--text-color);
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.copy-button:hover svg {
+  opacity: 1;
+  transform: scale(1.1);
 }
 
 .copy-button.copied {
-  background-color: var(--primary-color);
+  background-color: var(--accent-color);
 }
 
 .copy-button.copied svg {
   color: white;
+  opacity: 1;
 }
 
-/* Add these styles for the new button */
-.chat-controls {
-  display: flex;
-  align-items: center;
-}
-
-#summarizeContent,
-#restartChat {
-  background-color: transparent;
-  border: none;
+.copy-feedback {
+  position: absolute;
+  background-color: var(--accent-color);
   color: white;
-  cursor: pointer;
-  padding: 5px;
-  margin-left: 5px;
-  transition: transform 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  top: -24px;
+  right: 0;
 }
 
-#summarizeContent:hover,
-#restartChat:hover {
-  transform: scale(1.1);
+.copy-button.copied + .copy-feedback {
+  opacity: 1;
 }
-
-#summarizeContent svg,
-#restartChat svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-/* Adjust the existing styles for #restartChat to match */
-#restartChat {
-  background-color: transparent;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 18px;
-  padding: 0 5px;
-  transition: transform 0.2s ease;
-}
-
-#restartChat:hover {
-  transform: scale(1.1);
-}
-
-#restartChat svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* Add some space between the title and the buttons */
-#chatHeader span {
-  margin-right: auto;
-}
-
-/* Add these styles at the end of the file */
 
 #chatWindow.sidebar-mode {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 300px;
+  width: 350px;
   height: 100%;
   border-radius: 0;
-  box-shadow: -2px 0 10px var(--shadow-color);
+  box-shadow: -5px 0 15px var(--shadow-color);
 }
 
 #chatWindow.popup-mode {
-  border-radius: 12px;
-  box-shadow: 0 8px 16px var(--shadow-color);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px var(--shadow-color);
 }
 
 .sidebar-mode #resizeHandle {
   display: none;
 }
 
-#toggleSidebar {
-  background-color: transparent;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 5px;
-  margin-right: 5px;
-  transition: transform 0.2s ease;
-}
-
-#toggleSidebar:hover {
-  transform: scale(1.1);
-}
-
-#toggleSidebar svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-/* Adjust the body margin when in sidebar mode */
 body.sidebar-active {
-  margin-right: 300px;
-  transition: margin-right 0.3s ease;
+  margin-right: 350px;
+  transition: margin-right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* Add these styles for the sidebar resize handle */
 #sidebarResizeHandle {
   position: absolute;
   left: 0;
@@ -339,6 +311,7 @@ body.sidebar-active {
   width: 5px;
   cursor: ew-resize;
   background-color: transparent;
+  transition: background-color 0.3s ease;
 }
 
 #chatWindow.sidebar-mode #sidebarResizeHandle {
@@ -349,44 +322,27 @@ body.sidebar-active {
   display: none;
 }
 
-/* Modify the existing styles for the chat window */
-#chatWindow {
-  transition: none;
-}
-
 #chatWindow.transitioning {
-  transition: width 0.3s ease, height 0.3s ease, top 0.3s ease, right 0.3s ease, left 0.3s ease, bottom 0.3s ease;
-}
-
-/* Adjust the body margin transition */
-body {
-  transition: none;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 body.transitioning {
-  transition: margin-right 0.3s ease;
+  transition: margin-right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
-
-/* Add this new style for smooth dragging */
-#chatWindow.dragging {
-  transition: none !important;
-}
-
-/* Add these styles to your existing styles.css file */
 
 .message-content pre {
-  background-color: #f4f4f4;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 10px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 12px;
   overflow-x: auto;
   margin: 10px 0;
 }
 
 .message-content code {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: 'Fira Code', 'Courier New', Courier, monospace;
   font-size: 0.9em;
-  background-color: #f4f4f4;
+  background-color: rgba(0, 0, 0, 0.05);
   padding: 2px 4px;
   border-radius: 3px;
 }
@@ -395,7 +351,7 @@ body.transitioning {
   font-size: 1.2em;
   margin-top: 1em;
   margin-bottom: 0.5em;
-  color: #34495e;
+  color: var(--primary-color);
 }
 
 .message-content ul, .message-content ol {
@@ -408,50 +364,14 @@ body.transitioning {
 }
 
 .message-content a {
-  color: #2980b9;
+  color: var(--primary-color);
   text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-bottom-color 0.3s ease;
 }
 
 .message-content a:hover {
-  text-decoration: underline;
-}
-
-/* Dark mode styles */
-[data-theme="dark"] .message-content pre,
-[data-theme="dark"] .message-content code {
-  background-color: #2d2d2d;
-  border-color: #444;
-  color: #e6e6e6;
-}
-
-[data-theme="dark"] .message-content h3 {
-  color: #ecf0f1;
-}
-
-[data-theme="dark"] .message-content a {
-  color: #2980b9;
-}
-
-/* Add these styles at the end of the file */
-
-#hideChat {
-  background-color: transparent;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 5px;
-  margin-right: 5px;
-  transition: transform 0.2s ease;
-}
-
-#hideChat:hover {
-  transform: scale(1.1);
-}
-
-#hideChat svg {
-  width: 18px;
-  height: 18px;
-  display: block;
+  border-bottom-color: var(--primary-color);
 }
 
 #showChatToggle {
@@ -462,39 +382,38 @@ body.transitioning {
   background-color: var(--primary-color);
   color: white;
   border: none;
-  border-top-left-radius: 50%;
-  border-bottom-left-radius: 50%;
-  padding: 10px 5px 10px 10px;
+  border-top-left-radius: 24px;
+  border-bottom-left-radius: 24px;
+  padding: 12px 8px 12px 12px;
   cursor: pointer;
-  z-index: 2147483647; /* Maximum z-index value */
-  box-shadow: -2px 0 5px var(--shadow-color);
-  transition: background-color 0.3s ease;
+  z-index: 2147483647;
+  box-shadow: -2px 0 8px var(--shadow-color);
+  transition: all 0.3s ease;
 }
 
 #showChatToggle:hover {
   background-color: var(--primary-color-hover);
+  padding-right: 12px;
 }
 
 #showChatToggle svg {
   width: 24px;
   height: 24px;
   display: block;
-  /* Remove the following line */
-  /* transform: rotate(180deg); */
 }
 
 #navAssistFloatingBar {
   position: absolute;
   display: none;
   background-color: var(--primary-color);
-  border-radius: 20px;
-  padding: 6px 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  z-index: 2147483646; /* One less than the chat window */
+  border-radius: 24px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 2147483646;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  transition: opacity 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 #navAssistFloatingBar button {
@@ -502,17 +421,17 @@ body.transitioning {
   border: none;
   color: white;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease;
+  transition: all 0.2s ease;
   border-radius: 50%;
 }
 
 #navAssistFloatingBar button:hover {
   transform: scale(1.1);
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 #navAssistFloatingBar svg {
@@ -520,35 +439,42 @@ body.transitioning {
   height: 20px;
 }
 
-/* Add a new style for the floating bar tooltip */
 #navAssistFloatingBarTooltip {
   position: absolute;
   background-color: rgba(0, 0, 0, 0.8);
   color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
   font-size: 12px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
-/* Add these styles at the end of the file */
-
 #navAssistPredictionBar {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  position: fixed;
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.5;
   max-width: 300px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 8px;
+  padding: 6px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 2147483646;
+  pointer-events: none;
 }
 
 #navAssistPredictionBar span {
-  margin-left: 10px;
-  white-space: nowrap;
+  opacity: 0.7;
+  font-size: 0.9em;
+  margin-left: 8px;
+}
+
+#chatWindow.sidebar-mode #sidebarResizeHandle:hover {
+  background-color: rgba(41, 128, 185, 0.2);
 }

@@ -272,13 +272,19 @@ function addMessage(sender, text) {
 
 function addCopyButton(messageElement, textToCopy) {
   const copyButton = createCopyButton();
+  const copyFeedback = document.createElement('span');
+  copyFeedback.className = 'copy-feedback';
+  copyFeedback.textContent = 'Copied!';
+  
   copyButton.addEventListener('click', () => {
     navigator.clipboard.writeText(textToCopy).then(() => {
       copyButton.classList.add('copied');
       setTimeout(() => copyButton.classList.remove('copied'), 2000);
     });
   });
+  
   messageElement.appendChild(copyButton);
+  messageElement.appendChild(copyFeedback);
 }
 
 function markdownToHtml(markdown) {
@@ -1038,12 +1044,12 @@ function showPredictionBar(x, y, prediction) {
 
   predictionBar.innerHTML = predictionWithHint;
   
-  const offset = 50;
+  const offset = 5; // Reduced offset for more precise positioning
   const viewportHeight = window.innerHeight;
-  let top = y - offset;
+  let top = y - predictionBar.offsetHeight - offset;
   
   if (top < 0) {
-    top = offset;
+    top = y + offset; // Position below the cursor if not enough space above
   }
   
   if (top + predictionBar.offsetHeight > viewportHeight) {
@@ -1059,7 +1065,7 @@ function showPredictionBar(x, y, prediction) {
   }, 10);
 }
 
-// Add this function to hide the prediction bar
+
 function hidePredictionBar() {
   if (predictionBar) {
     predictionBar.style.opacity = '0';
@@ -1201,17 +1207,15 @@ function triggerPrediction(element) {
 
   chrome.runtime.sendMessage({ action: 'getPrediction', prompt: prompt }, (response) => {
     if (response && response.prediction) {
-      // Log the full raw answer from the model
       console.log('Full raw answer from model:', response.prediction);
       
       try {
         jsonResponse = JSON.parse(response.prediction);
         currentPrediction = jsonResponse.complete_sentence.substring(jsonResponse.incomplete_sentence.length).trim();
-        const rect = element.getBoundingClientRect();
         const cursorPos = getCursorPosition(element);
         showPredictionBar(
-          rect.left + cursorPos.x + window.scrollX,
-          rect.top + cursorPos.y + window.scrollY,
+          cursorPos.x + window.scrollX,
+          cursorPos.y + window.scrollY,
           currentPrediction
         );
       } catch (error) {
@@ -1231,21 +1235,30 @@ function getCursorPosition(element) {
     clone.selectNodeContents(element);
     clone.setEnd(range.endContainer, range.endOffset);
     const rect = clone.getBoundingClientRect();
-    return { x: rect.right - element.getBoundingClientRect().left, y: rect.top - element.getBoundingClientRect().top };
+    return { 
+      x: rect.right, 
+      y: rect.top 
+    };
   } else {
     const rect = element.getBoundingClientRect();
+    const computedStyle = window.getComputedStyle(element);
+    const lineHeight = parseInt(computedStyle.lineHeight);
+    const paddingTop = parseInt(computedStyle.paddingTop);
+    const borderTop = parseInt(computedStyle.borderTopWidth);
     const text = element.value.substring(0, element.selectionStart);
     const span = document.createElement('span');
-    span.style.cssText = `
-      position: absolute;
-      visibility: hidden;
-      white-space: pre-wrap;
-      font: ${getComputedStyle(element).font}`;
+    span.style.font = computedStyle.font;
+    span.style.fontSize = computedStyle.fontSize;
+    span.style.whiteSpace = 'pre-wrap';
     span.textContent = text;
     document.body.appendChild(span);
-    const spanRect = span.getBoundingClientRect();
+    const textWidth = span.offsetWidth;
     document.body.removeChild(span);
-    return { x: spanRect.width % rect.width, y: Math.floor(spanRect.width / rect.width) * parseFloat(getComputedStyle(element).lineHeight) };
+    const lines = Math.floor(textWidth / rect.width);
+    return { 
+      x: rect.left + (textWidth % rect.width), 
+      y: rect.top + paddingTop + borderTop + (lines * lineHeight)
+    };
   }
 }
 
