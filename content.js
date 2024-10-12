@@ -89,39 +89,36 @@
 
     console.log('mouseup event triggered');
 
-    if (showFloatingBarTimeout) {
-      clearTimeout(showFloatingBarTimeout);
+    const selection = window.getSelection();
+    selectedText = selection.toString().trim();
+
+    console.log('Selected text:', selectedText);
+    console.log('isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
+
+    if (selectedText) {
+      console.log('Showing floating bar');
+      lastSelection = selection.getRangeAt(0).cloneRange();
+      const rect = lastSelection.getBoundingClientRect();
+      floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
+      floatingBar.default.updateSelection(selectedText, lastSelection);
+    } else if (!selectedText && floatingBar.default.isFloatingBarActuallyVisible() && !isCtrlASelection) {
+      console.log('Hiding floating bar');
+      floatingBar.default.hideFloatingBar();
+    } else {
+      console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
     }
 
-    showFloatingBarTimeout = setTimeout(() => {
-      const selection = window.getSelection();
-      selectedText = selection.toString().trim();
-
-      console.log('Selected text:', selectedText);
-      console.log('isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
-
-      if (selectedText && !floatingBar.default.isFloatingBarActuallyVisible()) {
-        console.log('Showing floating bar');
-        lastSelection = selection.getRangeAt(0).cloneRange();
-        const rect = lastSelection.getBoundingClientRect();
-        floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
-        floatingBar.default.updateSelection(selectedText, lastSelection);  // Update this line
-      } else if (!selectedText && floatingBar.default.isFloatingBarActuallyVisible() && !isCtrlASelection) {
-        console.log('Hiding floating bar');
-        floatingBar.default.hideFloatingBar();
-      } else {
-        console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
-      }
-
-      isCtrlASelection = false;
-      predictionBar.default.hidePredictionBar();
-    }, 100);
+    isCtrlASelection = false;
+    predictionBar.default.hidePredictionBar();
   }
 
   function handleMouseDown(e) {
-    if (floatingBar.default.isFloatingBarActuallyVisible() && !floatingBar.default.isFloatingBarContainingTarget(e.target) && e.target.id !== 'navAssistFloatingBarTooltip') {
+    if (floatingBar.default.isFloatingBarActuallyVisible() && 
+        !floatingBar.default.isFloatingBarContainingTarget(e.target) && 
+        e.target.id !== 'navAssistFloatingBarTooltip' &&
+        !floatingBar.isEditingAI()) {
       console.log('Mousedown outside floating bar, hiding it');
-      floatingBar.default.hideFloatingBar();
+      floatingBar.default.hideFloatingBar(true);
     }
   }
 

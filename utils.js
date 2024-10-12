@@ -46,27 +46,11 @@ function replaceSelectedText(newText, storedRange) {
       // If the selection is within an editable field
       if (activeElement.isContentEditable) {
         // Handle contenteditable divs
-        const fragment = range.createContextualFragment(newText);
         range.deleteContents();
-        range.insertNode(fragment);
+        const textNode = document.createTextNode(newText);
+        range.insertNode(textNode);
+        range.selectNodeContents(textNode);
         range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        // Trigger input events
-        const inputEvent = new InputEvent('input', {
-          bubbles: true,
-          cancelable: true,
-          inputType: 'insertReplacementText',
-          data: newText
-        });
-        activeElement.dispatchEvent(inputEvent);
-
-        // Force update for reactive frameworks
-        setTimeout(() => {
-          const forceUpdateEvent = new Event('input', { bubbles: true, cancelable: true });
-          activeElement.dispatchEvent(forceUpdateEvent);
-        }, 0);
       } else {
         // Handle textarea and input elements
         const start = activeElement.selectionStart;
@@ -74,20 +58,34 @@ function replaceSelectedText(newText, storedRange) {
         const text = activeElement.value;
         activeElement.value = text.slice(0, start) + newText + text.slice(end);
         activeElement.setSelectionRange(start + newText.length, start + newText.length);
-
-        // Trigger input event for textarea and input elements
-        const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-        activeElement.dispatchEvent(inputEvent);
       }
+
+      // Trigger input events
+      const inputEvent = new InputEvent('input', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertReplacementText',
+        data: newText
+      });
+      activeElement.dispatchEvent(inputEvent);
+
+      // Force update for reactive frameworks
+      setTimeout(() => {
+        const forceUpdateEvent = new Event('input', { bubbles: true, cancelable: true });
+        activeElement.dispatchEvent(forceUpdateEvent);
+      }, 0);
     } else {
       // If the selection is in a non-editable area
-      const fragment = range.createContextualFragment(newText);
       range.deleteContents();
-      range.insertNode(fragment);
+      const textNode = document.createTextNode(newText);
+      range.insertNode(textNode);
+      range.selectNodeContents(textNode);
       range.collapse(false);
-      selection.removeAllRanges();
-      selection.addRange(range);
     }
+
+    selection.removeAllRanges();
+    selection.addRange(range);
+
     console.log('Text replaced successfully');
     return true;
   } catch (error) {
@@ -96,41 +94,56 @@ function replaceSelectedText(newText, storedRange) {
   }
 }
 
-function showLoadingIndicator() {
-  console.log('Showing loading indicator');
-  let loadingIndicator = document.getElementById('navAssistLoadingIndicator');
-  if (!loadingIndicator) {
-    loadingIndicator = document.createElement('div');
-    loadingIndicator.id = 'navAssistLoadingIndicator';
-    loadingIndicator.style.cssText = `
+function createOrUpdateMessageElement(id, message) {
+  let messageElement = document.getElementById(id);
+  if (!messageElement) {
+    messageElement = document.createElement('div');
+    messageElement.id = id;
+    messageElement.style.cssText = `
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
       background-color: rgba(0, 0, 0, 0.7);
       color: white;
       padding: 10px 20px;
       border-radius: 5px;
       z-index: 2147483647;
+      transition: opacity 0.3s ease;
     `;
-    loadingIndicator.textContent = 'Fixing grammar...';
-    document.body.appendChild(loadingIndicator);
+    document.body.appendChild(messageElement);
   }
+  messageElement.textContent = message;
+  return messageElement;
+}
+
+function positionMessageElement(element) {
+  const floatingBar = document.getElementById('navAssistFloatingBar');
+  if (floatingBar) {
+    const rect = floatingBar.getBoundingClientRect();
+    element.style.left = `${rect.left}px`;
+    element.style.top = `${rect.bottom + 10}px`; // 10px below the floating bar
+  } else {
+    element.style.left = '50%';
+    element.style.top = '50%';
+    element.style.transform = 'translate(-50%, -50%)';
+  }
+}
+
+function showLoadingIndicator(message = 'Loading...') {
+  console.log('Showing loading indicator');
+  const loadingIndicator = createOrUpdateMessageElement('navAssistLoadingIndicator', message);
+  positionMessageElement(loadingIndicator);
   loadingIndicator.style.display = 'block';
+  loadingIndicator.style.opacity = '1';
 }
 
 function hideLoadingIndicator() {
   console.log('Hiding loading indicator');
   const loadingIndicator = document.getElementById('navAssistLoadingIndicator');
   if (loadingIndicator) {
-    loadingIndicator.style.display = 'none';
+    loadingIndicator.style.opacity = '0';
+    setTimeout(() => {
+      loadingIndicator.style.display = 'none';
+    }, 300);
   }
-}
-
-function showNotification(message, type) {
-  console.log(`${type.toUpperCase()}: ${message}`);
-  // Implement a notification system, e.g., a toast message
-  // For now, we'll just use console.log
 }
 
 function markdownToHtml(markdown) {
@@ -165,6 +178,5 @@ export default {
   replaceSelectedText,
   showLoadingIndicator,
   hideLoadingIndicator,
-  showNotification,
   markdownToHtml
 };

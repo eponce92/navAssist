@@ -32,6 +32,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'getTabId':
       sendResponse({tabId: sender.tab.id});
       return true;
+    case 'aiEdit':
+      handleAiEdit(request.prompt, tabId, sendResponse);
+      return true;
   }
 });
 
@@ -354,3 +357,55 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     });
   }
 });
+
+function handleAiEdit(prompt, tabId, sendResponse) {
+  chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+    const provider = data.selectedProvider || 'ollama';
+    const model = data.selectedModel || 'llama3.2';
+    const apiKey = data.openrouterApiKey;
+    
+    let apiUrl, headers, body;
+    
+    if (provider === 'ollama') {
+      apiUrl = 'http://localhost:11434/v1/chat/completions';
+      headers = {
+        'Content-Type': 'application/json',
+      };
+      body = JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: prompt }],
+        stream: false
+      });
+    } else if (provider === 'openrouter') {
+      apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+      headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': chrome.runtime.getURL(''),
+        'X-Title': 'navAssist'
+      };
+      body = JSON.stringify({
+        model: "meta-llama/llama-3.1-70b-instruct:free",
+        messages: [{ role: 'user', content: prompt }],
+        stream: false
+      });
+    }
+    
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: headers,
+      body: body
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('API response:', data);
+      const editedText = data.choices[0].message.content.trim();
+      console.log('Edited text:', editedText);
+      sendResponse({ editedText: editedText });
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      sendResponse({ error: 'Failed to edit text' });
+    });
+  });
+}

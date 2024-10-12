@@ -26,17 +26,36 @@ function createFloatingBar() {
         <path d="M12 4v16"></path>
       </svg>
     </button>
+    <button id="aiEdit" title="AI Edit">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      </svg>
+    </button>
+    <div id="aiEditInputContainer" style="display: none;">
+      <input type="text" id="aiEditInput" placeholder="Enter AI edit instruction">
+    </div>
   `;
   document.body.appendChild(floatingBar);
 
   const transferButton = floatingBar.querySelector('#transferToChat');
-  transferButton.addEventListener('click', transferSelectedTextToChat);
+  transferButton.addEventListener('click', () => {
+    transferSelectedTextToChat();
+    hideFloatingBar(true);
+  });
 
   const fixGrammarButton = floatingBar.querySelector('#fixGrammar');
-  fixGrammarButton.addEventListener('click', fixGrammar);
+  fixGrammarButton.addEventListener('click', () => {
+    fixGrammar();
+    hideFloatingBar(true);
+  });
+
+  const aiEditButton = floatingBar.querySelector('#aiEdit');
+  aiEditButton.addEventListener('click', toggleAiEditInput);
 
   addTooltipListeners(transferButton, 'Transfer to Chat');
   addTooltipListeners(fixGrammarButton, 'Fix Grammar');
+  addTooltipListeners(aiEditButton, 'AI Edit');
 
   console.log('Floating bar created and added to the document');
 }
@@ -99,26 +118,44 @@ function showFloatingBar(x, y, isCtrlA = false) {
   floatingBar.style.position = 'fixed';
   floatingBar.style.zIndex = '2147483647';
   
-  floatingBar.style.opacity = '0';
-  requestAnimationFrame(() => {
-    floatingBar.style.opacity = '1';
-  });
+  floatingBar.style.opacity = '1';
 
   isFloatingBarVisible = true;
   isCtrlASelection = isCtrlA;
   console.log('Floating bar should now be visible');
+
+  const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
+  if (aiEditInputContainer.style.display !== 'none') {
+    floatingBar.style.width = 'auto'; // Allow the bar to expand
+  } else {
+    floatingBar.style.width = ''; // Reset to default width
+  }
 }
 
-function hideFloatingBar() {
-  if (floatingBar && isFloatingBarVisible && isFloatingBarActuallyVisible()) {
-    console.log('Hiding floating bar');
-    floatingBar.style.opacity = '0';
-    setTimeout(() => {
+function hideFloatingBar(force = false) {
+  if (floatingBar && isFloatingBarVisible) {
+    console.log('Attempting to hide floating bar. Force:', force);
+    if (force) {
+      console.log('Hiding floating bar');
+      floatingBar.style.opacity = '0';
       floatingBar.style.display = 'none';
       isFloatingBarVisible = false;
       isCtrlASelection = false;
+      
+      // Hide and clear the AI edit input
+      const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
+      const aiEditInput = floatingBar.querySelector('#aiEditInput');
+      if (aiEditInputContainer) {
+        aiEditInputContainer.style.display = 'none';
+      }
+      if (aiEditInput) {
+        aiEditInput.value = '';
+      }
+      
       console.log('Floating bar hidden');
-    }, 300);
+    } else {
+      console.log('Floating bar not hidden due to ongoing edit or mouse over');
+    }
   } else {
     console.log('Floating bar not visible or already hidden');
   }
@@ -143,8 +180,8 @@ function transferSelectedTextToChat() {
       messageInput.value = selectedText;
       messageInput.focus();
     }
-    chatWindowVisibility.showChatWindow();
-    hideFloatingBar();
+    chatWindowVisibility.default.showChatWindow();
+    hideFloatingBar(true);
   }
 }
 
@@ -162,7 +199,8 @@ function fixGrammar() {
   if (selectedText) {
     const prompt = `Fix this text grammar, don't change tone, language, or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the line breaks and spaces of the original text:\n\n${selectedText}`;
     
-    utils.showLoadingIndicator();
+    utils.showLoadingIndicator('Fixing grammar...');
+    hideFloatingBar(true);
     
     chrome.runtime.sendMessage({action: 'fixGrammar', prompt: prompt}, (response) => {
       utils.hideLoadingIndicator();
@@ -172,30 +210,118 @@ function fixGrammar() {
         if (lastSelection) {
           const success = utils.replaceSelectedText(response.fixedText, lastSelection);
           if (success) {
-            utils.showNotification('Grammar fixed successfully!', 'success');
+            console.log('Grammar fixed successfully!');
           } else {
-            utils.showNotification('Failed to replace text. Please try again.', 'error');
+            console.error('Failed to replace text. Please try again.');
           }
         } else {
           console.error('No valid selection range found');
-          utils.showNotification('No valid selection range found. Please try selecting the text again.', 'error');
         }
       } else {
         console.error('Failed to fix grammar');
-        utils.showNotification('Failed to fix grammar. Please try again.', 'error');
       }
     });
-    hideFloatingBar();
   } else {
     console.error('No valid selection found');
-    utils.showNotification('No valid selection found. Please try again.', 'error');
   }
 }
 
-// Add this new function to update the selected text and selection range
 function updateSelection(text, range) {
   selectedText = text;
-  lastSelection = range;
+  lastSelection = range.cloneRange();
+}
+
+function isEditingAI() {
+  const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
+  return aiEditInputContainer.style.display !== 'none';
+}
+
+function isMouseOverFloatingBar() {
+  return floatingBar.matches(':hover');
+}
+
+function toggleAiEditInput() {
+  const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
+  if (aiEditInputContainer.style.display === 'none') {
+    aiEditInputContainer.style.display = 'inline-block';
+    const aiEditInput = floatingBar.querySelector('#aiEditInput');
+    aiEditInput.focus();
+    aiEditInput.addEventListener('blur', handleAiEditInputBlur);
+    aiEditInput.addEventListener('keydown', handleAiEditInputKeydown);
+  } else {
+    aiEditInputContainer.style.display = 'none';
+  }
+  updateFloatingBarWidth();
+}
+
+function handleAiEditInputKeydown(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    const userInstructions = event.target.value.trim();
+    if (userInstructions) {
+      performAiEdit(userInstructions);
+      hideFloatingBar(true);  // Force hide the floating bar
+    }
+  }
+}
+
+function performAiEdit(userInstructions) {
+  if (!selectedText && lastSelection) {
+    const range = lastSelection.cloneRange();
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(range.cloneContents());
+    selectedText = tempDiv.innerText;
+  }
+  
+  if (selectedText) {
+    const prompt = `Modify the following text following the users directions and instructions. No conversations, opinions or extra text on your reply, Only the modified text and nothing else:
+
+User instructions: "${userInstructions}"
+
+${selectedText}`;
+    
+    utils.showLoadingIndicator('Working on your text...');
+    
+    chrome.runtime.sendMessage({action: 'aiEdit', prompt: prompt}, (response) => {
+      utils.hideLoadingIndicator();
+      
+      if (response && response.editedText) {
+        console.log('Received edited text:', response.editedText);
+        if (lastSelection) {
+          const success = utils.replaceSelectedText(response.editedText, lastSelection);
+          if (success) {
+            console.log('Text edited successfully!');
+          } else {
+            console.error('Failed to replace text. Please try again.');
+          }
+        } else {
+          console.error('No valid selection range found');
+        }
+      } else {
+        console.error('Failed to edit text');
+      }
+    });
+  } else {
+    console.error('No valid selection found');
+  }
+}
+
+function handleAiEditInputBlur(event) {
+  // Delay the hide check to allow for button clicks
+  setTimeout(() => {
+    if (!isMouseOverFloatingBar()) {
+      hideFloatingBar(true);
+    }
+  }, 100);
+}
+
+function updateFloatingBarWidth() {
+  const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
+  if (aiEditInputContainer.style.display !== 'none') {
+    floatingBar.style.width = 'auto';
+  } else {
+    floatingBar.style.width = '';
+  }
 }
 
 export default {
@@ -207,5 +333,8 @@ export default {
   transferSelectedTextToChat,
   fixGrammar,
   isFloatingBarVisible,
-  updateSelection  // Replace updateSelectedText with this new function
+  updateSelection,
+  toggleAiEditInput,
+  updateFloatingBarWidth,
+  performAiEdit,
 };
