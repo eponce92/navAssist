@@ -64,13 +64,19 @@
       });
     });
 
+    chrome.storage.local.get('isPredictionBarEnabled', function(result) {
+      const isPredictionBarEnabled = result.isPredictionBarEnabled === true; // Default to false if not set
+      if (isPredictionBarEnabled) {
+        predictionBar.default.createPredictionBar();
+        predictionBar.default.addPredictionListeners();
+      }
+    });
+
     completeInitialization();
   }
 
   function completeInitialization() {
     console.log('Completing initialization');
-    predictionBar.default.createPredictionBar();
-    predictionBar.default.addPredictionListeners();
     addGlobalEventListeners();
     showChatToggle();
   }
@@ -222,7 +228,20 @@
     if (request.action === 'toggleTheme') {
       applyTheme(request.isDarkTheme);
     }
+    if (request.action === 'togglePredictionBar') {
+      handleTogglePredictionBar(request.isEnabled);
+    }
   });
+
+  function handleTogglePredictionBar(isEnabled) {
+    if (isEnabled) {
+      predictionBar.default.createPredictionBar();
+      predictionBar.default.addPredictionListeners();
+    } else {
+      predictionBar.default.removePredictionBar();
+      predictionBar.default.removePredictionListeners();
+    }
+  }
 
   initializeExtension();
 })();

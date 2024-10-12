@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const ollamaSection = document.getElementById('ollamaSection');
   const openrouterSection = document.getElementById('openrouterSection');
   const openrouterApiKey = document.getElementById('openrouterApiKey');
+  const predictionBarToggle = document.getElementById('predictionBarToggle');
 
   // Load the power state
   chrome.storage.local.get('isExtensionActive', function(data) {
@@ -18,6 +19,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load the theme state
   chrome.storage.sync.get('isDarkTheme', function(data) {
     themeToggle.checked = data.isDarkTheme !== false; // Default to true if not set
+  });
+
+  // Load the prediction bar state
+  chrome.storage.local.get('isPredictionBarEnabled', function(data) {
+    predictionBarToggle.checked = data.isPredictionBarEnabled === true; // Default to false if not set
   });
 
   powerToggle.addEventListener('change', function() {
@@ -34,6 +40,15 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.sync.set({isDarkTheme: isDarkTheme}, function() {
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleTheme', isDarkTheme: isDarkTheme});
+      });
+    });
+  });
+
+  predictionBarToggle.addEventListener('change', function() {
+    const isEnabled = this.checked;
+    chrome.storage.local.set({isPredictionBarEnabled: isEnabled}, function() {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'togglePredictionBar', isEnabled: isEnabled});
       });
     });
   });
