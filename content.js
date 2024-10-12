@@ -64,13 +64,19 @@
       });
     });
 
+    chrome.storage.local.get('isPredictionBarEnabled', function(result) {
+      const isPredictionBarEnabled = result.isPredictionBarEnabled === true; // Default to false if not set
+      if (isPredictionBarEnabled) {
+        predictionBar.default.createPredictionBar();
+        predictionBar.default.addPredictionListeners();
+      }
+    });
+
     completeInitialization();
   }
 
   function completeInitialization() {
     console.log('Completing initialization');
-    predictionBar.default.createPredictionBar();
-    predictionBar.default.addPredictionListeners();
     addGlobalEventListeners();
     showChatToggle();
   }
@@ -89,39 +95,36 @@
 
     console.log('mouseup event triggered');
 
-    if (showFloatingBarTimeout) {
-      clearTimeout(showFloatingBarTimeout);
+    const selection = window.getSelection();
+    selectedText = selection.toString().trim();
+
+    console.log('Selected text:', selectedText);
+    console.log('isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
+
+    if (selectedText) {
+      console.log('Showing floating bar');
+      lastSelection = selection.getRangeAt(0).cloneRange();
+      const rect = lastSelection.getBoundingClientRect();
+      floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
+      floatingBar.default.updateSelection(selectedText, lastSelection);
+    } else if (!selectedText && floatingBar.default.isFloatingBarActuallyVisible() && !isCtrlASelection) {
+      console.log('Hiding floating bar');
+      floatingBar.default.hideFloatingBar();
+    } else {
+      console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
     }
 
-    showFloatingBarTimeout = setTimeout(() => {
-      const selection = window.getSelection();
-      selectedText = selection.toString().trim();
-
-      console.log('Selected text:', selectedText);
-      console.log('isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
-
-      if (selectedText && !floatingBar.default.isFloatingBarActuallyVisible()) {
-        console.log('Showing floating bar');
-        lastSelection = selection.getRangeAt(0).cloneRange();
-        const rect = lastSelection.getBoundingClientRect();
-        floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
-        floatingBar.default.updateSelection(selectedText, lastSelection);  // Update this line
-      } else if (!selectedText && floatingBar.default.isFloatingBarActuallyVisible() && !isCtrlASelection) {
-        console.log('Hiding floating bar');
-        floatingBar.default.hideFloatingBar();
-      } else {
-        console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
-      }
-
-      isCtrlASelection = false;
-      predictionBar.default.hidePredictionBar();
-    }, 100);
+    isCtrlASelection = false;
+    predictionBar.default.hidePredictionBar();
   }
 
   function handleMouseDown(e) {
-    if (floatingBar.default.isFloatingBarActuallyVisible() && !floatingBar.default.isFloatingBarContainingTarget(e.target) && e.target.id !== 'navAssistFloatingBarTooltip') {
+    if (floatingBar.default.isFloatingBarActuallyVisible() && 
+        !floatingBar.default.isFloatingBarContainingTarget(e.target) && 
+        e.target.id !== 'navAssistFloatingBarTooltip' &&
+        !floatingBar.default.isEditingAI()) {
       console.log('Mousedown outside floating bar, hiding it');
-      floatingBar.default.hideFloatingBar();
+      floatingBar.default.hideFloatingBar(true);
     }
   }
 
@@ -174,12 +177,18 @@
       toggleButton = document.createElement('button');
       toggleButton.id = 'showChatToggle';
       toggleButton.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-          <path d="M19 12H5M12 19l-7 7-7-7"/>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6"/>
         </svg>
       `;
       toggleButton.addEventListener('click', handleShowChatWindow);
       document.body.appendChild(toggleButton);
+      
+      // Position the toggle button on the right side of the window
+      toggleButton.style.position = 'fixed';
+      toggleButton.style.right = '0';
+      toggleButton.style.top = '50%';
+      toggleButton.style.transform = 'translateY(-50%)';
     }
     toggleButton.style.display = 'flex';
   }
@@ -219,7 +228,20 @@
     if (request.action === 'toggleTheme') {
       applyTheme(request.isDarkTheme);
     }
+    if (request.action === 'togglePredictionBar') {
+      handleTogglePredictionBar(request.isEnabled);
+    }
   });
+
+  function handleTogglePredictionBar(isEnabled) {
+    if (isEnabled) {
+      predictionBar.default.createPredictionBar();
+      predictionBar.default.addPredictionListeners();
+    } else {
+      predictionBar.default.removePredictionBar();
+      predictionBar.default.removePredictionListeners();
+    }
+  }
 
   initializeExtension();
 })();

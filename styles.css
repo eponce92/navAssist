@@ -423,11 +423,6 @@ body.transitioning {
 #showChatToggle svg {
   width: 24px;
   height: 24px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 #navAssistFloatingBar {
@@ -631,4 +626,27 @@ body.transitioning {
 /* Ensure the copy button is visible on user messages */
 .user-message:hover .copy-button {
   opacity: 1;
+}
+
+body {
+  transition: margin-right 0.3s ease;
+}
+
+#navAssistFloatingBar #aiEditInputContainer {
+  display: none;
+  margin-left: 10px;
+}
+
+#navAssistFloatingBar #aiEditInput {
+  background-color: var(--input-bg-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
+#navAssistFloatingBar #aiEditInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--primary-color-hover);
 }

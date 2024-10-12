@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "navAssist",
-  "version": "1.0.4",
+  "version": "1.2.0",
   "description": "An AI-powered assistant for web navigation and content interaction.",
   "permissions": [
     "storage",
     "activeTab"
   ],
   "host_permissions": [
-    "http://localhost:11434/"
+    "http://localhost:11434/",
+    "https://openrouter.ai/"
   ],
   "action": {
     "default_popup": "popup.html",

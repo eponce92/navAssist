@@ -215,6 +215,9 @@ function hideChatWindow() {
     isChatVisible = false;
     saveTabSettings();
     showChatToggle();
+    
+    // Add this line to remove the margin when hiding the chat window
+    document.body.style.marginRight = '0';
   }
 }
 

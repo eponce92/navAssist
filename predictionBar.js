@@ -252,20 +252,8 @@ function getCursorPosition(element) {
 }
 
 function addPredictionListeners() {
-  document.addEventListener('focusin', (e) => {
-    if (utils.isEditableElement(e.target)) {
-      e.target.addEventListener('input', (event) => utils.handleInput(event, triggerPrediction));
-      e.target.addEventListener('keydown', handleKeyDown);
-    }
-  });
-
-  document.addEventListener('focusout', (e) => {
-    if (utils.isEditableElement(e.target)) {
-      e.target.removeEventListener('input', (event) => utils.handleInput(event, triggerPrediction));
-      e.target.removeEventListener('keydown', handleKeyDown);
-      hidePredictionBar();
-    }
-  });
+  document.addEventListener('focusin', addInputListeners);
+  document.addEventListener('focusout', removeInputListeners);
 }
 
 function handleKeyDown(e) {
@@ -281,6 +269,32 @@ function handleKeyDown(e) {
   }
 }
 
+function removePredictionBar() {
+  if (predictionBar) {
+    predictionBar.remove();
+    predictionBar = null;
+  }
+}
+
+function removePredictionListeners() {
+  document.removeEventListener('focusin', addInputListeners);
+  document.removeEventListener('focusout', removeInputListeners);
+}
+
+function addInputListeners(e) {
+  if (utils.isEditableElement(e.target)) {
+    e.target.addEventListener('input', (event) => utils.handleInput(event, triggerPrediction));
+    e.target.addEventListener('keydown', handleKeyDown);
+  }
+}
+
+function removeInputListeners(e) {
+  if (utils.isEditableElement(e.target)) {
+    e.target.removeEventListener('input', (event) => utils.handleInput(event, triggerPrediction));
+    e.target.removeEventListener('keydown', handleKeyDown);
+  }
+}
+
 export default {
   createPredictionBar,
   showPredictionBar,
@@ -290,5 +304,7 @@ export default {
   getCurrentPageUrl,
   triggerPrediction,
   getCursorPosition,
-  addPredictionListeners
+  addPredictionListeners,
+  removePredictionBar,
+  removePredictionListeners
 };
