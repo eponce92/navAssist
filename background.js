@@ -37,13 +37,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 function handleSendMessage(request, sender, tabId) {
   console.log('Handling send message request:', request);
-  chrome.storage.sync.get('selectedModel', (data) => {
+  chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+    const provider = data.selectedProvider || 'ollama';
     const model = data.selectedModel || 'llama3.2';
+    const apiKey = data.openrouterApiKey;
     
     getChatHistory(tabId, (history) => {
       history.push({ role: 'user', content: request.message });
       saveChatHistory(tabId, history);
-      streamResponse(model, history, tabId, true);
+      streamResponse(provider, model, apiKey, history, tabId, true);
     });
   });
 }
@@ -64,8 +66,10 @@ function handleSummarizeContent(sender, tabId) {
 
     console.log('Page content received, length:', pageContent.length);
     
-    chrome.storage.sync.get('selectedModel', (data) => {
+    chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+      const provider = data.selectedProvider || 'ollama';
       const model = data.selectedModel || 'llama3.2';
+      const apiKey = data.openrouterApiKey;
       
       const prompt = 
         `USE MARKDOWN FORMAT FOR YOUR RESPONSE !!!
@@ -84,24 +88,46 @@ function handleSummarizeContent(sender, tabId) {
       getChatHistory(tabId, (history) => {
         history.push({ role: 'user', content: 'Please summarize the content of this page.' });
         saveChatHistory(tabId, history);
-        streamResponse(model, [...history, { role: 'user', content: prompt }], tabId, true);
+        streamResponse(provider, model, apiKey, [...history, { role: 'user', content: prompt }], tabId, true);
       });
     });
   });
 }
 
-function streamResponse(model, messages, tabId, updateChatHistory) {
+function streamResponse(provider, model, apiKey, messages, tabId, updateChatHistory) {
   console.log('Starting streamResponse');
-  fetch('http://localhost:11434/v1/chat/completions', {
-    method: 'POST',
-    headers: {
+  
+  let apiUrl, headers, body;
+  
+  if (provider === 'ollama') {
+    apiUrl = 'http://localhost:11434/v1/chat/completions';
+    headers = {
       'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+    };
+    body = JSON.stringify({
       model: model,
       messages: messages,
       stream: true
-    })
+    });
+  } else if (provider === 'openrouter') {
+    apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': chrome.runtime.getURL(''),
+      'X-Title': 'navAssist'
+    };
+    body = JSON.stringify({
+      model: "meta-llama/llama-3.1-70b-instruct:free",
+      messages: messages,
+      stream: true
+    });
+  }
+
+  fetch(apiUrl, {
+    method: 'POST',
+    headers: headers,
+    body: body
   })
   .then(response => {
     console.log('Received response from API');
@@ -199,19 +225,42 @@ chrome.tabs.onCreated.addListener((tab) => {
 });
 
 function handleFixGrammar(prompt, tabId, sendResponse) {
-  chrome.storage.sync.get('selectedModel', (data) => {
+  chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+    const provider = data.selectedProvider || 'ollama';
     const model = data.selectedModel || 'llama3.2';
+    const apiKey = data.openrouterApiKey;
     
-    fetch('http://localhost:11434/v1/chat/completions', {
-      method: 'POST',
-      headers: {
+    let apiUrl, headers, body;
+    
+    if (provider === 'ollama') {
+      apiUrl = 'http://localhost:11434/v1/chat/completions';
+      headers = {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      };
+      body = JSON.stringify({
         model: model,
         messages: [{ role: 'user', content: prompt }],
         stream: false
-      })
+      });
+    } else if (provider === 'openrouter') {
+      apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+      headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': chrome.runtime.getURL(''),
+        'X-Title': 'navAssist'
+      };
+      body = JSON.stringify({
+        model: "meta-llama/llama-3.1-70b-instruct:free",
+        messages: [{ role: 'user', content: prompt }],
+        stream: false
+      });
+    }
+    
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: headers,
+      body: body
     })
     .then(response => response.json())
     .then(data => {
@@ -228,19 +277,42 @@ function handleFixGrammar(prompt, tabId, sendResponse) {
 }
 
 function handleGetPrediction(prompt, tabId, sendResponse) {
-  chrome.storage.sync.get('selectedModel', (data) => {
+  chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+    const provider = data.selectedProvider || 'ollama';
     const model = data.selectedModel || 'llama3.2';
+    const apiKey = data.openrouterApiKey;
     
-    fetch('http://localhost:11434/v1/chat/completions', {
-      method: 'POST',
-      headers: {
+    let apiUrl, headers, body;
+    
+    if (provider === 'ollama') {
+      apiUrl = 'http://localhost:11434/v1/chat/completions';
+      headers = {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      };
+      body = JSON.stringify({
         model: model,
         messages: [{ role: 'user', content: prompt }],
         stream: false
-      })
+      });
+    } else if (provider === 'openrouter') {
+      apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+      headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': chrome.runtime.getURL(''),
+        'X-Title': 'navAssist'
+      };
+      body = JSON.stringify({
+        model: "meta-llama/llama-3.1-70b-instruct:free",
+        messages: [{ role: 'user', content: prompt }],
+        stream: false
+      });
+    }
+    
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: headers,
+      body: body
     })
     .then(response => response.json())
     .then(data => {

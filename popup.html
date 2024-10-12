@@ -49,13 +49,14 @@
       color: #4a4a4a;
       margin-bottom: 8px;
     }
-    select, button {
+    select, button, input[type="password"] {
       width: 100%;
       padding: 10px;
       border: 1px solid #e0e0e0;
       border-radius: 6px;
       font-size: 14px;
       background-color: #ffffff;
+      box-sizing: border-box;
     }
     button {
       background-color: #3F51B5;
@@ -130,14 +131,20 @@
     .status-disconnected {
       background-color: #F44336;
     }
-    .theme-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+
+    /* Add this new style for the API key input */
+    #openrouterApiKey {
+      font-size: 14px;
+      color: #333;
     }
-    .theme-emoji {
-      font-size: 24px;
-      margin: 0 12px;
+
+    /* Add these new styles */
+    #ollamaSection, #openrouterSection {
+      margin-bottom: 20px;
+    }
+
+    #modelSelect, #openrouterApiKey {
+      margin-bottom: 20px;
     }
   </style>
 </head>
@@ -151,14 +158,31 @@
       
       <div class="connection-status">
         <div id="statusIndicator" class="status-indicator"></div>
-        <span id="connectionStatus">Checking Ollama connection...</span>
+        <span id="connectionStatus">Checking connection...</span>
       </div>
 
       <div class="section">
-        <div class="section-title">Select Model</div>
-        <select id="modelSelect">
-          <option value="">Loading models...</option>
+        <div class="section-title">Provider</div>
+        <select id="providerSelect">
+          <option value="ollama">Ollama</option>
+          <option value="openrouter">OpenRouter</option>
         </select>
+      </div>
+
+      <div id="ollamaSection">
+        <div class="section">
+          <div class="section-title">Model</div>
+          <select id="modelSelect">
+            <option value="">Loading models...</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="openrouterSection" style="display: none;">
+        <div class="section">
+          <div class="section-title">API Key</div>
+          <input type="password" id="openrouterApiKey" placeholder="Enter your API key">
+        </div>
       </div>
 
       <div class="section">
@@ -172,23 +196,22 @@
       </div>
 
       <div class="section">
-        <div class="theme-toggle">
-          <span class="theme-emoji">🌞</span>
+        <div class="toggle-container">
+          <span class="section-title">Dark Theme</span>
           <label class="switch">
-            <input type="checkbox" id="themeToggle" checked>
-            <span class="slider round"></span>
+            <input type="checkbox" id="themeToggle">
+            <span class="slider"></span>
           </label>
-          <span class="theme-emoji">🌙</span>
         </div>
-      </div>
-
-      <div class="section">
-        <button id="reloadExtension">Reload Extension</button>
       </div>
 
       <div id="downloadSection" class="section" style="display: none;">
         <div class="section-title">Download Suggested Models</div>
         <!-- Download buttons will be dynamically added here -->
+      </div>
+
+      <div class="section">
+        <button id="reloadExtension">Reload Extension</button>
       </div>
     </div>
   </div>
