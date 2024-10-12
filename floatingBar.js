@@ -197,7 +197,7 @@ function fixGrammar() {
   }
   
   if (selectedText) {
-    const prompt = `Fix this text grammar, don't change tone, language, or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Keep the line breaks and spaces of the original text:\n\n${selectedText}`;
+    const prompt = `Fix this text grammar, don't change tone, language, or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Your response should be in the same language as the text you are fixing and nothing else:\n\n${selectedText}`;
     
     utils.showLoadingIndicator('Fixing grammar...');
     hideFloatingBar(true);
@@ -208,12 +208,7 @@ function fixGrammar() {
       if (response && response.fixedText) {
         console.log('Received fixed text:', response.fixedText);
         if (lastSelection) {
-          const success = utils.replaceSelectedText(response.fixedText, lastSelection);
-          if (success) {
-            console.log('Grammar fixed successfully!');
-          } else {
-            console.error('Failed to replace text. Please try again.');
-          }
+          replaceSelectedText(response.fixedText);
         } else {
           console.error('No valid selection range found');
         }
@@ -233,7 +228,7 @@ function updateSelection(text, range) {
 
 function isEditingAI() {
   const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
-  return aiEditInputContainer.style.display !== 'none';
+  return aiEditInputContainer && aiEditInputContainer.style.display !== 'none';
 }
 
 function isMouseOverFloatingBar() {
@@ -288,12 +283,7 @@ ${selectedText}`;
       if (response && response.editedText) {
         console.log('Received edited text:', response.editedText);
         if (lastSelection) {
-          const success = utils.replaceSelectedText(response.editedText, lastSelection);
-          if (success) {
-            console.log('Text edited successfully!');
-          } else {
-            console.error('Failed to replace text. Please try again.');
-          }
+          replaceSelectedText(response.editedText);
         } else {
           console.error('No valid selection range found');
         }
@@ -324,6 +314,54 @@ function updateFloatingBarWidth() {
   }
 }
 
+function replaceSelectedText(newText) {
+  if (!lastSelection) {
+    console.error('No valid selection range found');
+    return;
+  }
+
+  const range = lastSelection.cloneRange();
+  const activeElement = document.activeElement;
+
+  try {
+    if (activeElement.isContentEditable || range.startContainer.nodeType === Node.TEXT_NODE) {
+      // Handle contenteditable elements and text nodes
+      range.deleteContents();
+      range.insertNode(document.createTextNode(newText));
+      range.collapse(false);
+      
+      // Update the selection
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else if (activeElement.tagName === 'TEXTAREA' || (activeElement.tagName === 'INPUT' && activeElement.type === 'text')) {
+      // Handle textarea and text input elements
+      const start = activeElement.selectionStart;
+      const end = activeElement.selectionEnd;
+      activeElement.value = activeElement.value.substring(0, start) + newText + activeElement.value.substring(end);
+      activeElement.selectionStart = activeElement.selectionEnd = start + newText.length;
+    } else {
+      throw new Error('Unsupported element type for text replacement');
+    }
+
+    // Trigger input event to notify any listeners (like React) of the change
+    const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+    activeElement.dispatchEvent(inputEvent);
+
+    console.log('Text replaced successfully');
+  } catch (error) {
+    console.error('Error replacing text:', error);
+    
+    // Fallback method: try to replace the text using execCommand
+    try {
+      document.execCommand('insertText', false, newText);
+      console.log('Text replaced using execCommand');
+    } catch (execError) {
+      console.error('Failed to replace text using execCommand:', execError);
+    }
+  }
+}
+
 export default {
   createFloatingBar,
   showFloatingBar,
@@ -337,4 +375,5 @@ export default {
   toggleAiEditInput,
   updateFloatingBarWidth,
   performAiEdit,
+  isEditingAI,
 };

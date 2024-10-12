@@ -122,7 +122,7 @@
     if (floatingBar.default.isFloatingBarActuallyVisible() && 
         !floatingBar.default.isFloatingBarContainingTarget(e.target) && 
         e.target.id !== 'navAssistFloatingBarTooltip' &&
-        !floatingBar.isEditingAI()) {
+        !floatingBar.default.isEditingAI()) {
       console.log('Mousedown outside floating bar, hiding it');
       floatingBar.default.hideFloatingBar(true);
     }
