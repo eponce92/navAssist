@@ -327,7 +327,18 @@ function replaceSelectedText(newText) {
     if (activeElement.isContentEditable || range.startContainer.nodeType === Node.TEXT_NODE) {
       // Handle contenteditable elements and text nodes
       range.deleteContents();
-      range.insertNode(document.createTextNode(newText));
+      
+      // Create a temporary div to hold the new text
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = newText.replace(/\n/g, '<br>');
+      
+      // Insert each child node of the temporary div
+      const fragment = document.createDocumentFragment();
+      while (tempDiv.firstChild) {
+        fragment.appendChild(tempDiv.firstChild);
+      }
+      
+      range.insertNode(fragment);
       range.collapse(false);
       
       // Update the selection
