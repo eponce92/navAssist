@@ -208,16 +208,23 @@ function fixGrammar() {
       if (response && response.fixedText) {
         console.log('Received fixed text:', response.fixedText);
         if (lastSelection) {
-          replaceSelectedText(response.fixedText);
+          const success = utils.replaceSelectedText(response.fixedText, lastSelection);
+          if (!success) {
+            console.error('Failed to replace text');
+            alert('Failed to replace text. Please try again.');
+          }
         } else {
           console.error('No valid selection range found');
+          alert('No valid selection found. Please try again.');
         }
       } else {
         console.error('Failed to fix grammar');
+        alert('Failed to fix grammar. Please try again.');
       }
     });
   } else {
     console.error('No valid selection found');
+    alert('No valid selection found. Please try again.');
   }
 }
 
