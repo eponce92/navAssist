@@ -8,7 +8,7 @@ import floatingBar from './floatingBar.js';
 export let isExtensionActive = true;
 
 let chatWindow = null;
-let isSidebar = true;
+let isSidebar = false;
 let isChatVisible = false;
 let initialSidebarWidth = 500;
 
@@ -88,7 +88,7 @@ function createChatWindow() {
     const tabId = response.tabId;
     chrome.storage.local.get(`tabSettings_${tabId}`, function(result) {
       const tabSettings = result[`tabSettings_${tabId}`] || {};
-      isSidebar = tabSettings.isSidebar !== undefined ? tabSettings.isSidebar : true;
+      isSidebar = tabSettings.isSidebar !== undefined ? tabSettings.isSidebar : false;
       isChatVisible = tabSettings.isChatVisible !== undefined ? tabSettings.isChatVisible : false;
       initialSidebarWidth = tabSettings.sidebarWidth || 500;
 
@@ -250,7 +250,7 @@ function showChatWindow() {
   if (isSidebar) {
     setSidebarMode();
   } else {
-    setPopupMode();
+    setPopupMode(); // This will now be the default
   }
 
   // Hide the toggle button
@@ -360,7 +360,7 @@ export function handleToggleExtensionPower(isEnabled) {
 }
 
 export function loadTabSettings(settings) {
-  isSidebar = settings.isSidebar !== undefined ? settings.isSidebar : true;
+  isSidebar = settings.isSidebar !== undefined ? settings.isSidebar : false; // Change default to false
   isChatVisible = settings.isChatVisible !== undefined ? settings.isChatVisible : false;
   initialSidebarWidth = settings.sidebarWidth || 500;
   updateChatWindowVisibility();

@@ -60,6 +60,8 @@
       const tabId = response.tabId;
       chrome.storage.local.get(`tabSettings_${tabId}`, function(result) {
         const tabSettings = result[`tabSettings_${tabId}`] || {};
+        // Set default to popup mode if not specified
+        tabSettings.isSidebar = tabSettings.isSidebar !== undefined ? tabSettings.isSidebar : false;
         chatWindowVisibility.default.loadTabSettings(tabSettings);
       });
     });
@@ -203,12 +205,10 @@
       applyTheme(isDarkTheme);
     });
     
-    // Enable dragging and resizing if in popup mode
-    if (!chatWindowVisibility.default.isSidebar) {
-      const chatWindow = document.querySelector('#chatWindow');
-      chatWindowUI.default.enableDragging(chatWindow);
-      chatWindowUI.default.enableResizing(chatWindow);
-    }
+    // Enable dragging and resizing (now always in popup mode by default)
+    const chatWindow = document.querySelector('#chatWindow');
+    chatWindowUI.default.enableDragging(chatWindow);
+    chatWindowUI.default.enableResizing(chatWindow);
   }
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
