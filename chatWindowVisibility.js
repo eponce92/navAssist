@@ -14,8 +14,8 @@ let initialSidebarWidth = 500;
 
 function handleRuntimeError() {
   if (chrome.runtime.lastError) {
-    console.error('Extension context invalidated, reloading page...');
-    window.location.reload();
+    console.error('Extension context invalidated:', chrome.runtime.lastError);
+    isExtensionActive = false;
     return true;
   }
   return false;
@@ -169,6 +169,14 @@ function createChatWindow() {
       messageInput.addEventListener('input', () => {
         messageInput.style.height = 'auto';
         messageInput.style.height = `${Math.max(40, messageInput.scrollHeight)}px`;
+      });
+
+      // Update the event listener for the message input
+      messageInput.addEventListener('keydown', async (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          await chatWindowCore.sendMessage();
+        }
       });
     }
 
@@ -427,6 +435,13 @@ function saveTabSettings() {
 
 function updateChatWindowVisibility() {
   try {
+    // Check if Chrome API is available
+    if (!chrome.runtime) {
+      console.log('Chrome API not available, extension may be reloading');
+      isExtensionActive = false;
+      return;
+    }
+
     if (isExtensionActive) {
       if (isChatVisible) {
         if (chatWindow) {
@@ -434,14 +449,19 @@ function updateChatWindowVisibility() {
           chatWindow.style.visibility = 'visible';
           chatWindow.style.opacity = '1';
         } else {
-          createChatWindow();
+          try {
+            createChatWindow();
+          } catch (err) {
+            console.log('Could not create chat window:', err);
+            return;
+          }
         }
-        // Always remove the toggle button when chat is visible
+        // Remove the toggle button when chat is visible
         const toggleButton = document.getElementById('showChatToggle');
         if (toggleButton) {
           toggleButton.remove();
         }
-        // Set the correct mode after creating or showing the window
+        // Set the correct mode
         if (isSidebar) {
           setSidebarMode();
         } else {
@@ -453,18 +473,33 @@ function updateChatWindowVisibility() {
           chatWindow.style.visibility = 'hidden';
           chatWindow.style.opacity = '0';
         }
-        showChatToggle();
+        try {
+          showChatToggle();
+        } catch (err) {
+          console.log('Could not show chat toggle:', err);
+        }
       }
       // Create prediction bar when extension is active
-      predictionBar.createPredictionBar();
+      try {
+        predictionBar.createPredictionBar();
+      } catch (err) {
+        console.log('Could not create prediction bar:', err);
+      }
     } else {
-      removeChatWindow();
-      // Remove prediction bar when extension is inactive
-      predictionBar.removePredictionBar();
+      if (chatWindow) {
+        chatWindow.style.display = 'none';
+        chatWindow.style.visibility = 'hidden';
+        chatWindow.style.opacity = '0';
+      }
+      try {
+        predictionBar.removePredictionBar();
+      } catch (err) {
+        console.log('Could not remove prediction bar:', err);
+      }
     }
   } catch (error) {
     console.error('Error in updateChatWindowVisibility:', error);
-    window.location.reload();
+    isExtensionActive = false;
   }
 }
 
@@ -660,9 +695,22 @@ export function addToChat(selectedText) {
       const textarea = chatInput?.querySelector('textarea');
       
       if (textarea) {
-        // Format: cursor here, new line, selected text
+        // Preserve line breaks and spacing
+        const formattedText = selectedText
+          // Replace multiple consecutive line breaks with exactly two line breaks
+          .replace(/\n{3,}/g, '\n\n')
+          // Ensure there's always a line break at the start for cursor positioning
+          .replace(/^\s*/, '\n')
+          // Preserve single and double line breaks
+          .replace(/\n/g, '\n')
+          // Remove extra spaces at the end of lines
+          .replace(/[ \t]+$/gm, '')
+          // Remove extra spaces at the start of lines (except the first line)
+          .replace(/^[ \t]+/gm, '');
+
+        // Format: cursor here, new line, selected text with preserved formatting
         const currentValue = textarea.value || '';
-        const newValue = currentValue + (currentValue ? '\n\n' : '') + selectedText;
+        const newValue = currentValue + (currentValue ? '\n\n' : '') + formattedText;
         textarea.value = newValue;
         
         // Place cursor at the beginning of the new content

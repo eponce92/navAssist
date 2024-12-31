@@ -132,101 +132,55 @@ export function setChatWindow(window) {
 
 function handleRuntimeError() {
   if (chrome.runtime.lastError) {
-    console.error('Extension context invalidated, reloading page...');
-    window.location.reload();
-    return true;
+    console.error('Extension context error:', chrome.runtime.lastError.message);
+    // Instead of reloading, try to recover
+    if (chrome.runtime.lastError.message.includes('Extension context invalidated')) {
+      console.log('Extension context invalidated, attempting to recover...');
+      // Notify user
+      const errorMessage = addMessage('System', 'Connection to extension lost. Please refresh the page to reconnect.');
+      return true;
+    }
   }
   return false;
 }
 
-export function sendMessage() {
-  try {
-    if (!chatWindow) {
-      console.error('Chat window not initialized');
-      return;
-    }
+// Add message ID tracking
+let messageCounter = 0;
 
-    const messageInput = chatWindow.querySelector('#messageInput');
-    const message = messageInput.value.trim();
-    if (message) {
-      console.log('Sending message:', message);
-      addMessage('User', message);
-      messageInput.value = '';
-      messageInput.style.height = 'auto';
-      
-      const assistantMessageElement = addMessage('Assistant', '');
-      const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
-      let accumulatedMarkdown = '';
-      
-      try {
-        chrome.runtime.sendMessage({action: 'sendMessage', message: message}, function(response) {
-          if (handleRuntimeError()) return;
-          console.log('Message sent successfully, waiting for response');
-        });
-
-        const responseHandler = function(message) {
-          try {
-            if (message.action === 'streamResponse') {
-              if (message.reply) {
-                accumulatedMarkdown += message.reply;
-                assistantMessageContent.innerHTML = utils.markdownToHtml(accumulatedMarkdown);
-                const chatMessages = chatWindow.querySelector('#chatMessages');
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-              }
-
-              if (message.done) {
-                addMessageButtons(assistantMessageElement, accumulatedMarkdown);
-                chrome.runtime.onMessage.removeListener(responseHandler);
-              }
-            }
-          } catch (error) {
-            console.error('Error in response handler:', error);
-            chrome.runtime.onMessage.removeListener(responseHandler);
-            window.location.reload();
-          }
-        };
-
-        chrome.runtime.onMessage.addListener(responseHandler);
-      } catch (error) {
-        console.error('Error sending message:', error);
-        assistantMessageContent.innerHTML = 'Error: Unable to send message. Please try again.';
-        window.location.reload();
-      }
-    }
-  } catch (error) {
-    console.error('Error in sendMessage:', error);
-    window.location.reload();
-  }
-}
-
-export function addMessage(sender, text) {
-  if (!chatWindow) {
-    console.error('Chat window not initialized');
-    return;
-  }
-
+async function addMessage(role, content) {
+  console.log('📝 Adding message:', { role, content });
+  
   const chatMessages = chatWindow.querySelector('#chatMessages');
-  const messageElement = document.createElement('div');
-  messageElement.className = `message ${sender.toLowerCase()}-message`;
-  
-  const messageContent = document.createElement('div');
-  messageContent.className = 'message-content';
-  messageContent.innerHTML = utils.markdownToHtml(text);
-  
-  messageElement.appendChild(messageContent);
-  
-  if (text) {
-    if (sender === 'Assistant') {
-      addMessageButtons(messageElement, text);
-    } else {
-      addCopyButton(messageElement, text);
-    }
+  if (!chatMessages) {
+    console.error('❌ Chat messages container not found');
+    return null;
   }
-  
-  chatMessages.appendChild(messageElement);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
 
-  return messageElement;
+  try {
+    // Create message element with unique ID
+    const messageDiv = document.createElement('div');
+    const messageId = `msg-${Date.now()}-${messageCounter++}`;
+    messageDiv.id = messageId;
+    messageDiv.className = `message ${role.toLowerCase()}-message`;
+    
+    // Create message content container
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.textContent = content;
+    
+    // Assemble message
+    messageDiv.appendChild(contentDiv);
+    
+    // Add to chat
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    console.log('✅ Message added successfully with ID:', messageId);
+    return messageDiv;
+  } catch (error) {
+    console.error('❌ Error adding message:', error);
+    return null;
+  }
 }
 
 function addMessageButtons(messageElement, text) {
@@ -238,6 +192,7 @@ function addMessageButtons(messageElement, text) {
   buttonContainer.style.display = 'flex';
   buttonContainer.style.gap = '8px';
   
+  // Add copy button
   const copyButton = createCopyButton();
   const copyFeedback = document.createElement('span');
   copyFeedback.className = 'copy-feedback';
@@ -249,67 +204,34 @@ function addMessageButtons(messageElement, text) {
       setTimeout(() => copyButton.classList.remove('copied'), 2000);
     });
   });
-
-  const ttsButton = createTTSButton();
-  const ttsFeedback = document.createElement('span');
-  ttsFeedback.className = 'tts-feedback';
-  ttsFeedback.textContent = 'Playing...';
   
-  ttsButton.addEventListener('click', async () => {
-    try {
-      ttsButton.disabled = true;
-      ttsButton.classList.add('playing');
-      
-      // Get voice ID from storage
-      const voiceId = await new Promise((resolve) => {
-        chrome.storage.sync.get('selectedVoiceId', (data) => {
-          resolve(data.selectedVoiceId || '21m00Tcm4TlvDq8ikWAM'); // Default voice ID
-        });
-      });
-
-      try {
-        const audioSource = await ttsService.textToSpeech(text, voiceId);
-        
-        audioSource.onended = () => {
-          ttsButton.disabled = false;
-          ttsButton.classList.remove('playing');
-        };
-        
-      } catch (error) {
-        console.error('TTS error:', error);
-        alert('Error generating speech. Please check your API key and try again.');
-        ttsButton.disabled = false;
-        ttsButton.classList.remove('playing');
-      }
-    } catch (error) {
-      console.error('Error in TTS button click:', error);
-      ttsButton.disabled = false;
-      ttsButton.classList.remove('playing');
-    }
-  });
+  // Add TTS button for assistant messages only
+  if (messageElement.classList.contains('assistant-message') && text) {
+    console.log('🎤 Setting up TTS button');
+    const ttsButton = document.createElement('button');
+    ttsButton.className = 'tts-button';
+    ttsButton.dataset.messageId = messageElement.id;
+    
+    // Set initial icon based on cache
+    ttsService.updateTTSButton(ttsButton, text);
+    
+    // Add click handler
+    ttsButton.addEventListener('click', async () => {
+      console.log('🎵 TTS button clicked for message:', messageElement.id);
+      await ttsService.playTTS(text, messageElement);
+    });
+    
+    const ttsFeedback = document.createElement('span');
+    ttsFeedback.className = 'tts-feedback';
+    ttsFeedback.textContent = 'Playing...';
+    
+    buttonContainer.appendChild(ttsButton);
+    buttonContainer.appendChild(ttsFeedback);
+  }
   
   buttonContainer.appendChild(copyButton);
   buttonContainer.appendChild(copyFeedback);
-  buttonContainer.appendChild(ttsButton);
-  buttonContainer.appendChild(ttsFeedback);
   messageElement.appendChild(buttonContainer);
-}
-
-function addCopyButton(messageElement, textToCopy) {
-  const copyButton = createCopyButton();
-  const copyFeedback = document.createElement('span');
-  copyFeedback.className = 'copy-feedback';
-  copyFeedback.textContent = 'Copied!';
-  
-  copyButton.addEventListener('click', () => {
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      copyButton.classList.add('copied');
-      setTimeout(() => copyButton.classList.remove('copied'), 2000);
-    });
-  });
-  
-  messageElement.appendChild(copyButton);
-  messageElement.appendChild(copyFeedback);
 }
 
 function createCopyButton() {
@@ -322,20 +244,6 @@ function createCopyButton() {
     </svg>
   `;
   button.title = 'Copy to clipboard';
-  return button;
-}
-
-function createTTSButton() {
-  const button = document.createElement('button');
-  button.className = 'tts-button';
-  button.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-    </svg>
-  `;
-  button.title = 'Read aloud';
   return button;
 }
 
@@ -385,15 +293,32 @@ function updateElementColors(theme) {
   });
 }
 
-export function summarizePageContent() {
+export async function summarizePageContent() {
   try {
     console.log('Summarizing page content');
-    const assistantMessageElement = addMessage('Assistant', 'Summarizing page content...');
-    const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
+    
+    // Create assistant message with loading text
+    const assistantMessageElement = await addMessage('Assistant', 'Summarizing page content...');
+    if (!assistantMessageElement) {
+      console.error('Failed to create assistant message element');
+      return;
+    }
+    
+    // Find the content div
+    const contentDiv = assistantMessageElement.querySelector('.message-content');
+    if (!contentDiv) {
+      console.error('Message content element not found');
+      return;
+    }
+    
     let accumulatedSummary = '';
     
     chrome.runtime.sendMessage({action: 'summarizeContent'}, function(response) {
-      if (handleRuntimeError()) return;
+      if (handleRuntimeError()) {
+        contentDiv.textContent = 'Error: Connection lost. Please refresh the page.';
+        return;
+      }
+      console.log('Summary request sent, waiting for response');
     });
 
     const summaryHandler = function(message) {
@@ -401,27 +326,39 @@ export function summarizePageContent() {
         if (message.action === 'streamResponse') {
           if (message.reply) {
             accumulatedSummary += message.reply;
-            assistantMessageContent.innerHTML = utils.markdownToHtml(accumulatedSummary);
+            contentDiv.innerHTML = utils.markdownToHtml(accumulatedSummary);
             const chatMessages = chatWindow.querySelector('#chatMessages');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            if (chatMessages) {
+              chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
           }
 
           if (message.done) {
+            // Update final content
+            contentDiv.innerHTML = utils.markdownToHtml(accumulatedSummary);
+            
+            // Add buttons
             addMessageButtons(assistantMessageElement, accumulatedSummary);
+            
+            // Update TTS button if present
+            const ttsButton = assistantMessageElement.querySelector('.tts-button');
+            if (ttsButton) {
+              ttsService.updateTTSButton(ttsButton, accumulatedSummary);
+            }
+            
             chrome.runtime.onMessage.removeListener(summaryHandler);
           }
         }
       } catch (error) {
         console.error('Error in summary handler:', error);
         chrome.runtime.onMessage.removeListener(summaryHandler);
-        window.location.reload();
+        contentDiv.textContent = 'Error: Failed to process summary. Please try again.';
       }
     };
 
     chrome.runtime.onMessage.addListener(summaryHandler);
   } catch (error) {
     console.error('Error in summarizePageContent:', error);
-    window.location.reload();
   }
 }
 
@@ -516,6 +453,107 @@ async function handleTTSClick(button, text) {
       <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
     `;
     throw error;
+  }
+}
+
+export async function sendMessage() {
+  try {
+    if (!chatWindow) {
+      console.error('Chat window not initialized');
+      return;
+    }
+
+    const messageInput = chatWindow.querySelector('#messageInput');
+    if (!messageInput) {
+      console.error('Message input not found');
+      return;
+    }
+
+    const message = messageInput.value.trim();
+    if (!message) {
+      return;
+    }
+
+    console.log('Sending message:', message);
+    
+    // Create user message
+    const userMessageElement = await addMessage('User', message);
+    if (!userMessageElement) {
+      console.error('Failed to create user message element');
+      return;
+    }
+    
+    // Clear input
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+    
+    // Create assistant message with empty content
+    const assistantMessageElement = await addMessage('Assistant', '');
+    if (!assistantMessageElement) {
+      console.error('Failed to create assistant message element');
+      return;
+    }
+    
+    // Find the content div
+    const contentDiv = assistantMessageElement.querySelector('.message-content');
+    if (!contentDiv) {
+      console.error('Message content element not found');
+      return;
+    }
+    
+    let accumulatedMarkdown = '';
+    
+    try {
+      chrome.runtime.sendMessage({action: 'sendMessage', message: message}, function(response) {
+        if (handleRuntimeError()) {
+          contentDiv.textContent = 'Error: Connection lost. Please refresh the page.';
+          return;
+        }
+        console.log('Message sent successfully, waiting for response');
+      });
+
+      const responseHandler = function(message) {
+        try {
+          if (message.action === 'streamResponse') {
+            if (message.reply) {
+              accumulatedMarkdown += message.reply;
+              contentDiv.innerHTML = utils.markdownToHtml(accumulatedMarkdown);
+              const chatMessages = chatWindow.querySelector('#chatMessages');
+              if (chatMessages) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              }
+            }
+
+            if (message.done) {
+              // Update the final content
+              contentDiv.innerHTML = utils.markdownToHtml(accumulatedMarkdown);
+              
+              // Add buttons only after content is final
+              addMessageButtons(assistantMessageElement, accumulatedMarkdown);
+              
+              // Update TTS button based on cache status
+              const ttsButton = assistantMessageElement.querySelector('.tts-button');
+              if (ttsButton) {
+                ttsService.updateTTSButton(ttsButton, accumulatedMarkdown);
+              }
+              
+              chrome.runtime.onMessage.removeListener(responseHandler);
+            }
+          }
+        } catch (error) {
+          console.error('Error in response handler:', error);
+          chrome.runtime.onMessage.removeListener(responseHandler);
+          contentDiv.textContent = 'Error: Failed to process response. Please try again.';
+        }
+      };
+
+      chrome.runtime.onMessage.addListener(responseHandler);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      contentDiv.textContent = 'Error: Unable to send message. Please try again.';
+    }
+  } catch (error) {
+    console.error('Error in sendMessage:', error);
   }
 }
 

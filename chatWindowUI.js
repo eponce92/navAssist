@@ -1,5 +1,7 @@
 // UI-related functionality for the chat window
 
+import ttsService from './ttsService.js';
+
 let isDragging = false;
 let isResizing = false;
 let isResizingSidebar = false;
@@ -161,3 +163,49 @@ export default {
   enableDragging,
   enableResizing,
 };
+
+async function createMessageElement(role, content) {
+  console.log('🎨 Creating message element for:', role);
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `message ${role.toLowerCase()}-message`;
+  
+  const textDiv = document.createElement('div');
+  textDiv.className = 'message-text';
+  textDiv.textContent = content;
+  
+  const controlsDiv = document.createElement('div');
+  controlsDiv.className = 'message-controls';
+  
+  try {
+    // Create TTS button
+    const ttsButton = document.createElement('button');
+    ttsButton.className = 'tts-button';
+    
+    // Set initial icon (speaker by default)
+    ttsButton.innerHTML = ttsService.SPEAKER_ICON;
+    ttsButton.title = 'Generate speech';
+    
+    // Check cache and update icon if needed
+    console.log('🔍 Checking cache status for new message...');
+    const isCached = await ttsService.isInTTSCache(content);
+    if (isCached) {
+      console.log('💾 Found in cache, setting play icon');
+      ttsButton.innerHTML = ttsService.PLAY_ICON;
+      ttsButton.title = 'Play cached audio';
+    }
+    
+    ttsButton.addEventListener('click', async () => {
+      console.log('🎵 TTS button clicked');
+      await ttsService.playTTS(content, messageDiv);
+    });
+    
+    controlsDiv.appendChild(ttsButton);
+  } catch (error) {
+    console.error('❌ Error setting up TTS button:', error);
+  }
+  
+  messageDiv.appendChild(textDiv);
+  messageDiv.appendChild(controlsDiv);
+  
+  return messageDiv;
+}

@@ -467,7 +467,7 @@ function fixGrammar() {
   }
   
   if (selectedText) {
-    const prompt = `Fix this text grammar, don't change tone, language, or way of speaking, just fix errors. No chitchat or conversation, only reply with the fixed text. Your response should be in the same language as the text you are fixing and nothing else:\n\n${selectedText}`;
+    const prompt = `Fix this text grammar, don't change tone, language, or way of speaking, just fix errors. IMPORTANT: Preserve all line breaks, paragraph spacing, and text formatting exactly as in the original text. No chitchat or conversation, only reply with the fixed text. Your response should be in the same language as the text you are fixing and nothing else:\n\n${selectedText}`;
     
     utils.showLoadingIndicator('Fixing grammar...');
     hideFloatingBar(true);
@@ -628,7 +628,7 @@ function performAiEdit(userInstructions) {
   console.log('Selected text:', selectedText);
   
   if (selectedText) {
-    const prompt = `Modify the following text following the users directions and instructions. No conversations, opinions or extra text on your reply, Only the modified text and nothing else:
+    const prompt = `Modify the following text following the users directions and instructions. IMPORTANT: Preserve all line breaks, paragraph spacing, and text formatting exactly as in the original text. No conversations, opinions or extra text on your reply, Only the modified text and nothing else:
 
 User instructions: "${userInstructions}"
 
@@ -682,8 +682,64 @@ function replaceSelectedText(newText) {
   
   try {
     const range = lastSelection.cloneRange();
-    range.deleteContents();
-    range.insertNode(document.createTextNode(newText));
+    const activeElement = document.activeElement;
+
+    if (activeElement.isContentEditable || 
+        (activeElement.tagName === 'TEXTAREA') || 
+        (activeElement.tagName === 'INPUT' && activeElement.type === 'text')) {
+      
+      // Handle editable fields
+      if (activeElement.isContentEditable) {
+        // For contenteditable divs, preserve line breaks
+        const formattedText = newText.replace(/\n/g, '<br>');
+        range.deleteContents();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = formattedText;
+        const fragment = document.createDocumentFragment();
+        while (tempDiv.firstChild) {
+          fragment.appendChild(tempDiv.firstChild);
+        }
+        range.insertNode(fragment);
+      } else {
+        // For textarea and input elements
+        const start = activeElement.selectionStart;
+        const end = activeElement.selectionEnd;
+        const text = activeElement.value;
+        activeElement.value = text.slice(0, start) + newText + text.slice(end);
+        activeElement.setSelectionRange(start + newText.length, start + newText.length);
+      }
+
+      // Trigger input events
+      const inputEvent = new InputEvent('input', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertReplacementText',
+        data: newText
+      });
+      activeElement.dispatchEvent(inputEvent);
+
+      // Force update for reactive frameworks
+      setTimeout(() => {
+        const forceUpdateEvent = new Event('input', { bubbles: true, cancelable: true });
+        activeElement.dispatchEvent(forceUpdateEvent);
+      }, 0);
+    } else {
+      // For non-editable areas, preserve line breaks
+      range.deleteContents();
+      const lines = newText.split('\n');
+      const fragment = document.createDocumentFragment();
+      
+      lines.forEach((line, index) => {
+        if (index > 0) {
+          fragment.appendChild(document.createElement('br'));
+        }
+        if (line.length > 0) {
+          fragment.appendChild(document.createTextNode(line));
+        }
+      });
+      
+      range.insertNode(fragment);
+    }
   } catch (error) {
     console.error('Error replacing text:', error);
   }
