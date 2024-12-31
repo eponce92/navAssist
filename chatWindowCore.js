@@ -3,6 +3,129 @@ import ttsService from './ttsService.js';
 
 let chatWindow = null;
 
+// TTS cache using IndexedDB
+const TTS_CACHE_DB = 'ttsCache';
+const TTS_CACHE_STORE = 'audioData';
+const TTS_CACHE_VERSION = 1;
+
+let ttsDb = null;
+
+// Initialize IndexedDB for TTS cache
+function initTTSCache() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(TTS_CACHE_DB, TTS_CACHE_VERSION);
+    
+    request.onerror = () => {
+      console.error('Failed to open TTS cache database');
+      reject(request.error);
+    };
+    
+    request.onsuccess = (event) => {
+      ttsDb = event.target.result;
+      resolve(ttsDb);
+    };
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(TTS_CACHE_STORE)) {
+        db.createObjectStore(TTS_CACHE_STORE, { keyPath: 'text' });
+      }
+    };
+  });
+}
+
+// Check if audio exists in cache
+async function getFromTTSCache(text) {
+  if (!ttsDb) await initTTSCache();
+  
+  return new Promise((resolve, reject) => {
+    const transaction = ttsDb.transaction([TTS_CACHE_STORE], 'readonly');
+    const store = transaction.objectStore(TTS_CACHE_STORE);
+    const request = store.get(text);
+    
+    request.onsuccess = () => {
+      resolve(request.result?.audioData || null);
+    };
+    
+    request.onerror = () => {
+      console.error('Error reading from TTS cache');
+      reject(request.error);
+    };
+  });
+}
+
+// Save audio to cache
+async function saveToTTSCache(text, audioData) {
+  if (!ttsDb) await initTTSCache();
+  
+  return new Promise((resolve, reject) => {
+    const transaction = ttsDb.transaction([TTS_CACHE_STORE], 'readwrite');
+    const store = transaction.objectStore(TTS_CACHE_STORE);
+    const request = store.put({ text, audioData });
+    
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('Error saving to TTS cache');
+      reject(request.error);
+    };
+  });
+}
+
+// Modified playTTS function with caching
+async function playTTS(text, messageElement) {
+  if (!text) return;
+  
+  try {
+    // Check cache first
+    const cachedAudio = await getFromTTSCache(text);
+    if (cachedAudio) {
+      console.log('Using cached TTS audio');
+      const audio = new Audio(cachedAudio);
+      audio.play();
+      return;
+    }
+    
+    // If not in cache, make API call
+    const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/...', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'xi-api-key': apiKey
+      },
+      body: JSON.stringify({
+        text: text,
+        // ... rest of the API call parameters ...
+      })
+    });
+    
+    if (!response.ok) throw new Error('TTS API call failed');
+    
+    // Convert response to base64 for storage
+    const audioBlob = await response.blob();
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    
+    reader.onloadend = async () => {
+      const base64Audio = reader.result;
+      // Save to cache
+      await saveToTTSCache(text, base64Audio);
+      
+      // Play the audio
+      const audio = new Audio(base64Audio);
+      audio.play();
+    };
+    
+  } catch (error) {
+    console.error('Error in TTS playback:', error);
+    // Show error message to user
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'tts-error';
+    errorDiv.textContent = 'Failed to play audio. Please try again.';
+    messageElement.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 3000);
+  }
+}
+
 export function setChatWindow(window) {
   chatWindow = window;
 }

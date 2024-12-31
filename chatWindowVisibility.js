@@ -123,6 +123,55 @@ function createChatWindow() {
       });
     });
 
+    // Add focus handling to the chat window
+    chatWindow.addEventListener('mousedown', (e) => {
+      // Only handle focus if clicking inside the chat window
+      if (chatWindow.contains(e.target)) {
+        // If clicking the input or a button/link, let the default behavior happen
+        if (e.target.tagName === 'INPUT' || 
+            e.target.tagName === 'BUTTON' || 
+            e.target.tagName === 'A' ||
+            e.target.tagName === 'TEXTAREA') {
+          return;
+        }
+        
+        // For other elements in the chat window, focus the input
+        const messageInput = chatWindow.querySelector('#messageInput');
+        if (messageInput) {
+          messageInput.focus();
+        }
+      }
+    });
+
+    // Add focus handling to the message input
+    const messageInput = chatWindow.querySelector('#messageInput');
+    if (messageInput) {
+      // Only maintain focus when explicitly requested
+      messageInput.addEventListener('focus', () => {
+        messageInput._shouldMaintainFocus = true;
+      });
+
+      messageInput.addEventListener('blur', (e) => {
+        // Allow blur if we're not maintaining focus or clicking outside chat
+        if (!messageInput._shouldMaintainFocus || !chatWindow.contains(e.relatedTarget)) {
+          messageInput._shouldMaintainFocus = false;
+          return;
+        }
+        
+        // Prevent blur only if we're maintaining focus and clicking inside chat
+        if (messageInput._shouldMaintainFocus && chatWindow.contains(e.relatedTarget)) {
+          e.preventDefault();
+          messageInput.focus();
+        }
+      });
+
+      // Handle input events for height adjustment
+      messageInput.addEventListener('input', () => {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = `${Math.max(40, messageInput.scrollHeight)}px`;
+      });
+    }
+
     return chatWindow;
   } catch (error) {
     console.error('Error in createChatWindow:', error);
@@ -348,6 +397,13 @@ function showChatWindow() {
   setTimeout(() => {
     chatWindow.classList.remove('showing');
     chatWindow.style.transition = '';
+    
+    // Focus the input
+    const messageInput = chatWindow.querySelector('#messageInput');
+    if (messageInput) {
+      messageInput.focus();
+      messageInput.setSelectionRange(0, 0);
+    }
   }, 300);
 }
 

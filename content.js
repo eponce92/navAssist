@@ -147,15 +147,19 @@
     console.log('Selected text:', selectedText);
     console.log('isFloatingBarVisible:', modules.floatingBar.default.isFloatingBarActuallyVisible());
 
-    // Only show floating bar if we have text selected and it's not already visible
-    if (selectedText && !modules.floatingBar.default.isFloatingBarActuallyVisible()) {
+    // Only show floating bar if we have text selected, it's not already visible, and not in chat interface
+    if (selectedText && 
+        !modules.floatingBar.default.isFloatingBarActuallyVisible() && 
+        !modules.floatingBar.default.isSelectionInChatInterface()) {
       console.log('Showing floating bar');
       lastSelection = selection.getRangeAt(0).cloneRange();
       const rect = lastSelection.getBoundingClientRect();
       modules.floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
       modules.floatingBar.default.updateSelection(selectedText, lastSelection);
     } else {
-      console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', modules.floatingBar.default.isFloatingBarActuallyVisible());
+      console.log('No action taken: selectedText:', !!selectedText, 
+                  'isFloatingBarVisible:', modules.floatingBar.default.isFloatingBarActuallyVisible(),
+                  'isInChatInterface:', modules.floatingBar.default.isSelectionInChatInterface());
     }
 
     isCtrlASelection = false;
@@ -190,17 +194,8 @@
     const selection = window.getSelection();
     const text = selection.toString().trim();
     
-    // Get the active element to check where we're typing
-    const activeElement = document.activeElement;
-    
-    // Check if we're in the AI edit input or chat interface
-    const isAiEditInput = activeElement.id === 'aiEditInput';
-    const isChatInterface = activeElement.id === 'messageInput' || 
-                           activeElement.closest('#chatWindow') !== null;
-    
-    // Don't show predictions if we're in AI edit input or chat interface
-    if (isAiEditInput || isChatInterface) {
-      modules.predictionBar.default.hidePredictionBar();
+    // Safely check if selection is within chat interface
+    if (modules.floatingBar?.default?.isSelectionInChatInterface?.()) {
       return;
     }
     
@@ -215,20 +210,51 @@
     if (!modules.chatWindowVisibility.default.isExtensionActive) return;
 
     if (e.ctrlKey && e.key === 'a') {
-      setTimeout(() => {
-        const selection = window.getSelection();
-        selectedText = selection.toString().trim();
+      // Check if we're in the chat interface
+      const activeElement = document.activeElement;
+      const chatWindow = document.getElementById('chatWindow');
+      const messageInput = document.getElementById('messageInput');
+      const isInChatInterface = (
+        activeElement === messageInput ||
+        (chatWindow && chatWindow.contains(activeElement))
+      );
+
+      if (isInChatInterface) {
+        e.preventDefault(); // Prevent default Ctrl+A behavior
+        e.stopPropagation(); // Stop event from bubbling up
         
-        console.log('Ctrl+A pressed, selected text:', selectedText);
-        
-        if (selectedText) {
-          lastSelection = selection.getRangeAt(0).cloneRange();
-          const rect = lastSelection.getBoundingClientRect();
-          console.log('Selection rect:', rect);
-          modules.floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY, true);
-          modules.floatingBar.default.updateSelection(selectedText, lastSelection);  // Add this line
+        // If in message input, select all its text
+        if (activeElement === messageInput) {
+          messageInput.select();
+        } 
+        // If in a chat message, select that message's content
+        else if (chatWindow && chatWindow.contains(activeElement)) {
+          const messageElement = activeElement.closest('.message');
+          if (messageElement) {
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(messageElement);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
         }
-      }, 0);
+      } else {
+        // Outside chat interface, handle normal Ctrl+A with floating bar
+        setTimeout(() => {
+          const selection = window.getSelection();
+          selectedText = selection.toString().trim();
+          
+          console.log('Ctrl+A pressed, selected text:', selectedText);
+          
+          if (selectedText) {
+            lastSelection = selection.getRangeAt(0).cloneRange();
+            const rect = lastSelection.getBoundingClientRect();
+            console.log('Selection rect:', rect);
+            modules.floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY, true);
+            modules.floatingBar.default.updateSelection(selectedText, lastSelection);
+          }
+        }, 0);
+      }
     }
 
     if (e.ctrlKey && e.code === 'Space' && modules.floatingBar.default.isFloatingBarActuallyVisible()) {

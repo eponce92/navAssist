@@ -237,7 +237,30 @@ function hideTooltip() {
   }
 }
 
+function isSelectionInChatInterface() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return false;
+  
+  const range = selection.getRangeAt(0);
+  const container = range.commonAncestorContainer;
+  
+  // Check if selection is within chat input or chat window
+  const chatWindow = document.getElementById('chatWindow');
+  const messageInput = document.getElementById('messageInput');
+  
+  return (
+    (messageInput && (messageInput.contains(container) || container === messageInput)) ||
+    (chatWindow && chatWindow.contains(container))
+  );
+}
+
 function showFloatingBar(x, y, isCtrlA = false) {
+  // Don't show floating bar if selection is within chat interface
+  if (isSelectionInChatInterface()) {
+    console.log('Selection is within chat interface, not showing floating bar');
+    return;
+  }
+
   console.log('showFloatingBar called with coordinates:', x, y, 'isCtrlA:', isCtrlA);
   
   if (!floatingBar) {
@@ -374,14 +397,61 @@ function isFloatingBarContainingTarget(target) {
 
 function transferSelectedTextToChat() {
   console.log('Transferring selected text to chat:', selectedText);
-  if (selectedText) {
-    const messageInput = document.querySelector('#messageInput');
-    if (messageInput) {
-      messageInput.value = selectedText;
-      messageInput.focus();
-    }
-    chatWindowVisibility.default.showChatWindow();
+  if (!selectedText) return;
+
+  const chatWindow = document.getElementById('chatWindow');
+  const messageInput = document.querySelector('#messageInput');
+  
+  // Hide floating bar first
+  if (isFloatingBarActuallyVisible()) {
     hideFloatingBar(true);
+  }
+  
+  const setInputContent = (input) => {
+    // Get current text
+    const currentValue = input.value;
+    
+    // Format: empty first line for typing, then transferred text, then existing text
+    const newValue = '\n' + selectedText + 
+                    (currentValue ? '\n\n' + currentValue : '');
+    
+    // Update textarea value
+    input.value = newValue;
+    
+    // Set cursor at the beginning
+    input.setSelectionRange(0, 0);
+    
+    // Trigger input event for height adjustment
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    
+    // Set focus with maintenance flag
+    input._shouldMaintainFocus = true;
+    input.focus();
+    
+    // Clear maintenance flag after a short delay
+    setTimeout(() => {
+      input._shouldMaintainFocus = false;
+    }, 500);
+  };
+  
+  if (chatWindow && messageInput) {
+    // If chat window exists and is visible, just add the text
+    if (chatWindow.style.display !== 'none' && chatWindow.style.visibility !== 'hidden') {
+      setInputContent(messageInput);
+    } else {
+      // If chat window is not visible, show it first
+      chatWindowVisibility.default.showChatWindow();
+      setTimeout(() => setInputContent(messageInput), 100);
+    }
+  } else {
+    // If chat window doesn't exist, create it
+    chatWindowVisibility.default.showChatWindow();
+    setTimeout(() => {
+      const newMessageInput = document.querySelector('#messageInput');
+      if (newMessageInput) {
+        setInputContent(newMessageInput);
+      }
+    }, 100);
   }
 }
 
@@ -696,4 +766,5 @@ export default {
   updateFloatingBarWidth,
   performAiEdit,
   isEditingAI,
+  isSelectionInChatInterface,
 };
