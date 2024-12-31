@@ -7,29 +7,47 @@ let lastSelection = null;
 let isFloatingBarVisible = false;
 let isCtrlASelection = false;
 
+// Initialize selection change listener
+document.addEventListener('selectionchange', handleSelectionChange);
+
+function handleSelectionChange() {
+  const selection = window.getSelection();
+  const text = selection.toString().trim();
+  
+  // If there's no text selected or the selection is collapsed
+  if (!text || selection.isCollapsed) {
+    // Only hide if we're not currently editing
+    if (!isEditingAI() && !isMouseOverFloatingBar()) {
+      hideFloatingBar(true);
+    }
+  } else {
+    // Update the selection if there is text selected
+    if (selection.rangeCount > 0) {
+      updateSelection(text, selection.getRangeAt(0));
+    }
+  }
+}
+
 function createFloatingBar() {
   console.log('Creating floating bar');
   floatingBar = document.createElement('div');
   floatingBar.id = 'navAssistFloatingBar';
   floatingBar.innerHTML = `
     <button id="transferToChat" title="Transfer to Chat">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="17 8 12 3 7 8"></polyline>
-        <line x1="12" y1="3" x2="12" y2="15"></line>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
       </svg>
     </button>
     <button id="fixGrammar" title="Fix Grammar">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 7V4h16v3"></path>
-        <path d="M9 20h6"></path>
-        <path d="M12 4v16"></path>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 4h10m-10 4h10M7 12h4M7 16h4"/>
+        <path d="M15 16l2 2 4-4"/>
       </svg>
     </button>
     <button id="aiEdit" title="AI Edit">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 20h9"></path>
-        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
       </svg>
     </button>
     <div id="aiEditInputContainer" style="display: none;">
@@ -57,15 +75,33 @@ function createFloatingBar() {
   addTooltipListeners(fixGrammarButton, 'Fix Grammar');
   addTooltipListeners(aiEditButton, 'AI Edit');
 
+  // Add document click listener to hide tooltips when clicking outside
+  document.addEventListener('mousedown', (e) => {
+    if (!floatingBar.contains(e.target)) {
+      hideTooltip();
+    }
+  });
+
   console.log('Floating bar created and added to the document');
 }
 
 function addTooltipListeners(element, tooltipText) {
-  element.addEventListener('mouseenter', (e) => showTooltip(e, tooltipText));
-  element.addEventListener('mouseleave', hideTooltip);
+  let tooltipTimeout;
+  
+  element.addEventListener('mouseenter', (e) => {
+    clearTimeout(tooltipTimeout);
+    showTooltip(e, tooltipText);
+  });
+  
+  element.addEventListener('mouseleave', () => {
+    tooltipTimeout = setTimeout(hideTooltip, 100);
+  });
 }
 
 function showTooltip(event, text) {
+  // Hide any existing tooltips first
+  hideTooltip();
+  
   const tooltip = document.createElement('div');
   tooltip.id = 'navAssistFloatingBarTooltip';
   tooltip.textContent = text;
@@ -85,44 +121,83 @@ function hideTooltip() {
   if (tooltip) {
     tooltip.style.opacity = '0';
     setTimeout(() => {
-      tooltip.remove();
+      if (tooltip && tooltip.parentNode) {
+        tooltip.parentNode.removeChild(tooltip);
+      }
     }, 200);
   }
 }
 
 function showFloatingBar(x, y, isCtrlA = false) {
   console.log('showFloatingBar called with coordinates:', x, y, 'isCtrlA:', isCtrlA);
+  
+  // Hide any existing tooltips when showing the floating bar
+  hideTooltip();
+  
   if (!floatingBar) {
     console.log('Creating floating bar');
     createFloatingBar();
   }
   
-  const barHeight = floatingBar.offsetHeight;
-  const offset = isCtrlA ? 10 : 50;
+  // Get the selection range and its bounding rect
+  const selection = window.getSelection();
+  const range = selection.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  
+  // Calculate position relative to viewport
+  const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
+  const barWidth = floatingBar.offsetWidth;
+  const barHeight = floatingBar.offsetHeight;
   
-  let top = y - barHeight - offset;
+  // Default vertical offset (much larger to ensure visibility)
+  const verticalOffset = 60; // Increased from 30 to 60px
   
-  if (top < 0) {
-    top = offset;
+  // Try to position above first
+  let top = rect.top - barHeight - verticalOffset;
+  let positionBelow = false;
+  
+  // If there's not enough space above, try below
+  if (top < 10) {
+    top = rect.bottom + verticalOffset;
+    positionBelow = true;
   }
   
-  if (top + barHeight > viewportHeight) {
-    top = viewportHeight - barHeight - offset;
+  // If neither above nor below has enough space, choose the side with more space
+  if (top < 10 || top + barHeight > viewportHeight - 10) {
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportHeight - rect.bottom;
+    if (spaceAbove > spaceBelow) {
+      top = Math.max(10, rect.top - barHeight - verticalOffset);
+    } else {
+      top = Math.min(viewportHeight - barHeight - 10, rect.bottom + verticalOffset);
+    }
   }
   
-  console.log('Setting floating bar position:', { left: x, top: top });
-  floatingBar.style.left = `${x}px`;
-  floatingBar.style.top = `${top}px`;
+  // Calculate horizontal position (centered on selection)
+  let left = rect.left + (rect.width / 2) - (barWidth / 2);
+  
+  // Keep within horizontal bounds
+  left = Math.max(10, Math.min(viewportWidth - barWidth - 10, left));
+  
+  // Apply the calculated position
+  floatingBar.style.left = `${left + window.pageXOffset}px`;
+  floatingBar.style.top = `${top + window.pageYOffset}px`;
   floatingBar.style.display = 'flex';
-  floatingBar.style.position = 'fixed';
+  floatingBar.style.position = 'absolute';
   floatingBar.style.zIndex = '2147483647';
   
+  // Add a transition for smooth positioning
+  floatingBar.style.transition = 'opacity 0.2s ease';
+  floatingBar.style.opacity = '0';
+  
+  // Force a reflow before setting opacity to 1
+  floatingBar.offsetHeight;
   floatingBar.style.opacity = '1';
 
   isFloatingBarVisible = true;
   isCtrlASelection = isCtrlA;
-  console.log('Floating bar should now be visible');
+  console.log('Floating bar should now be visible at position:', { left, top, positionBelow });
 
   const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
   if (aiEditInputContainer.style.display !== 'none') {
@@ -137,20 +212,26 @@ function hideFloatingBar(force = false) {
     console.log('Attempting to hide floating bar. Force:', force);
     if (force) {
       console.log('Hiding floating bar');
-      floatingBar.style.opacity = '0';
-      floatingBar.style.display = 'none';
-      isFloatingBarVisible = false;
-      isCtrlASelection = false;
+      // Always hide tooltip first
+      hideTooltip();
       
-      // Hide and clear the AI edit input
-      const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
-      const aiEditInput = floatingBar.querySelector('#aiEditInput');
-      if (aiEditInputContainer) {
-        aiEditInputContainer.style.display = 'none';
-      }
-      if (aiEditInput) {
-        aiEditInput.value = '';
-      }
+      // Hide the floating bar with transition
+      floatingBar.style.opacity = '0';
+      setTimeout(() => {
+        floatingBar.style.display = 'none';
+        isFloatingBarVisible = false;
+        isCtrlASelection = false;
+        
+        // Hide and clear the AI edit input
+        const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
+        const aiEditInput = floatingBar.querySelector('#aiEditInput');
+        if (aiEditInputContainer) {
+          aiEditInputContainer.style.display = 'none';
+        }
+        if (aiEditInput) {
+          aiEditInput.value = '';
+        }
+      }, 200); // Match the transition duration
       
       console.log('Floating bar hidden');
     } else {
@@ -224,6 +305,8 @@ function fixGrammar() {
 function updateSelection(text, range) {
   selectedText = text;
   lastSelection = range.cloneRange();
+  // Hide tooltips when selection changes
+  hideTooltip();
 }
 
 function isEditingAI() {

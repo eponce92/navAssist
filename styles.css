@@ -1,6 +1,9 @@
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 /* Update the root variables */
 :root {
-  --primary-color: #3F51B5; /* Keep this color for both light and dark modes */
+  --primary-color: #3F51B5;
   --background-color: #FFFFFF;
   --text-color: #333333;
   --border-color: #E0E0E0;
@@ -10,10 +13,11 @@
   --primary-color-hover: #303F9F;
   --accent-color: #4CAF50;
   --input-bg-color: #FFFFFF;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
 [data-theme="dark"] {
-  --primary-color: #3F51B5; /* Use the same color as in light mode */
+  --primary-color: #3F51B5;
   --background-color: #1E1E1E;
   --text-color: #E0E0E0;
   --border-color: #444444;
@@ -25,240 +29,50 @@
   --input-bg-color: #333333;
 }
 
-#chatWindow {
-  position: fixed;
-  width: 380px;
-  height: 600px;
-  background-color: var(--background-color);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  box-shadow: 0 10px 30px var(--shadow-color);
-  z-index: 2147483647;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  overflow: hidden;
-  color: var(--text-color);
-  transition: none;
-  will-change: width, height;
+/* Apply font family to all elements */
+* {
+  font-family: var(--font-family);
 }
 
-#chatWindow:not(.dragging):not(.resizing) {
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
+/* ... (keep all existing styles until the copy button styles) ... */
 
-#chatWindow.dragging {
-  transition: none !important;
-  opacity: 0.9;
-}
-
-#chatWindow.resizing {
-  transition: none;
-}
-
-#chatHeader {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 15px 20px;
-  font-weight: 600;
-  user-select: none;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 18px;
-  border-bottom: none;
-}
-
-#dragHandle {
-  display: flex;
-  align-items: center;
-  cursor: move;
-  flex-grow: 1;
-}
-
-#chatIcon {
-  width: 28px;
-  height: 28px;
-  margin-right: 12px;
-}
-
-.chat-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.chat-controls button {
-  background-color: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.chat-controls button:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-  transform: scale(1.05);
-}
-
-.chat-controls button svg {
-  width: 20px;
-  height: 20px;
-}
-
-#chatMessages {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  background-color: var(--background-color);
-}
-
-#chatInput {
-  display: flex;
-  padding: 15px 20px;
-  background-color: var(--background-color);
-  border-top: 1px solid var(--border-color);
-}
-
-#messageInput {
-  flex-grow: 1;
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  padding: 12px 20px;
-  font-size: 16px;
-  resize: none;
-  max-height: 120px;
-  overflow-y: auto;
-  transition: all 0.3s ease;
-  background-color: var(--input-bg-color);
-  color: var(--text-color);
-}
-
-#messageInput:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.2);
-}
-
-#sendMessage {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  min-width: 48px; /* Add this line */
-  min-height: 48px; /* Add this line */
-  margin-left: 12px;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0; /* Add this line */
-}
-
-#sendMessage:hover {
-  background-color: var(--primary-color-hover);
-  transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-#sendMessage svg {
-  width: 24px;
-  height: 24px;
-  min-width: 24px; /* Add this line */
-  min-height: 24px; /* Add this line */
-}
-
-.message {
-  max-width: 85%;
-  padding: 12px 18px;
-  border-radius: 18px;
-  font-size: 15px;
-  line-height: 1.5;
-  position: relative;
-  box-shadow: 0 1px 2px var(--shadow-color);
-}
-
-.user-message {
-  align-self: flex-end;
-  background-color: var(--message-bg-user);
-  color: #FFFFFF;
-  border-bottom-right-radius: 4px;
-  padding-left: 36px; /* Increase left padding to make room for the copy button */
-}
-
-.assistant-message {
-  align-self: flex-start;
-  background-color: var(--message-bg-assistant);
-  color: var(--text-color);
-  border-bottom-left-radius: 4px;
-}
-
-#resizeHandle {
+.message-buttons {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 20px;
-  height: 20px;
-  cursor: se-resize;
-  background: linear-gradient(135deg, transparent 50%, var(--primary-color-hover) 50%);
-  z-index: 10;
-}
-
-/* Scrollbar styles */
-#chatMessages::-webkit-scrollbar {
-  width: 6px;
-}
-
-#chatMessages::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-#chatMessages::-webkit-scrollbar-thumb {
-  background-color: rgba(41, 128, 185, 0.3);
-  border-radius: 3px;
-}
-
-#chatMessages::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(41, 128, 185, 0.5);
-}
-
-.copy-button {
-  position: absolute;
-  top: 8px;
   right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: transparent;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.message:hover .message-buttons {
+  opacity: 1;
+}
+
+.copy-button,
+.tts-button {
   background-color: transparent;
   border: none;
   cursor: pointer;
-  opacity: 0;
-  transition: all 0.3s ease;
   padding: 4px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.3s ease;
 }
 
-.message:hover .copy-button {
-  opacity: 1;
-}
-
-.copy-button:hover {
+.copy-button:hover,
+.tts-button:hover {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
-.copy-button svg {
+.copy-button svg,
+.tts-button svg {
   width: 16px;
   height: 16px;
   color: var(--text-color);
@@ -266,21 +80,25 @@
   transition: all 0.3s ease;
 }
 
-.copy-button:hover svg {
+.copy-button:hover svg,
+.tts-button:hover svg {
   opacity: 1;
   transform: scale(1.1);
 }
 
-.copy-button.copied {
+.copy-button.copied,
+.tts-button.playing {
   background-color: var(--accent-color);
 }
 
-.copy-button.copied svg {
+.copy-button.copied svg,
+.tts-button.playing svg {
   color: white;
   opacity: 1;
 }
 
-.copy-feedback {
+.copy-feedback,
+.tts-feedback {
   position: absolute;
   background-color: var(--accent-color);
   color: white;
@@ -294,359 +112,479 @@
   right: 0;
 }
 
-.copy-button.copied + .copy-feedback {
+.copy-button.copied + .copy-feedback,
+.tts-button.playing + .tts-feedback {
   opacity: 1;
 }
 
-#chatWindow.sidebar-mode {
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 350px;
-  height: 100%;
-  border-radius: 0;
-  box-shadow: -5px 0 15px var(--shadow-color);
-}
-
-#chatWindow.popup-mode {
-  border-radius: 16px;
-  box-shadow: 0 10px 30px var(--shadow-color);
-}
-
-.sidebar-mode #resizeHandle {
-  display: none;
-}
-
-body.sidebar-active {
-  margin-right: 350px;
-  transition: margin-right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-#sidebarResizeHandle {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
-  cursor: ew-resize;
-  background-color: transparent;
-  transition: background-color 0.3s ease;
-  z-index: 10;
-}
-
-#chatWindow.sidebar-mode #sidebarResizeHandle {
-  display: block;
-}
-
-#chatWindow.popup-mode #sidebarResizeHandle {
-  display: none;
-}
-
-#chatWindow.transitioning {
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-body.transitioning {
-  transition: margin-right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-.message-content pre {
-  background-color: rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  padding: 12px;
-  overflow-x: auto;
-  margin: 10px 0;
-}
-
-.message-content code {
-  font-family: 'Fira Code', 'Courier New', Courier, monospace;
-  font-size: 0.9em;
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 2px 4px;
-  border-radius: 3px;
-}
-
-.message-content h3 {
-  font-size: 1.2em;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-  color: var(--primary-color);
-}
-
-.message-content ul, .message-content ol {
-  padding-left: 20px;
-  margin: 10px 0;
-}
-
-.message-content li {
-  margin-bottom: 5px;
-}
-
-.message-content a {
-  color: var(--primary-color);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-bottom-color 0.3s ease;
-}
-
-.message-content a:hover {
-  border-bottom-color: var(--primary-color);
+.tts-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 #showChatToggle {
-  position: fixed;
-  right: -36px; /* Hide more of the button initially */
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: var(--primary-color-hover);
-  color: white;
-  border: none;
-  border-top-left-radius: 24px;
-  border-bottom-left-radius: 24px;
-  padding: 12px 8px 12px 12px; /* Adjusted padding */
-  cursor: pointer;
-  z-index: 2147483647;
-  box-shadow: -2px 0 8px var(--shadow-color);
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed !important;
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 32px !important;
+  height: 48px !important;
+  background-color: var(--primary-color) !important;
+  border: none !important;
+  border-radius: 12px 0 0 12px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2147483647 !important;
+  box-shadow: -2px 0 8px var(--shadow-color) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.3s ease, width 0.3s ease !important;
 }
 
 #showChatToggle:hover {
-  right: -4px; /* Reveal most of the button on hover */
-  background-color: var(--primary-color);
-  padding-right: 20px; /* Adjusted padding */
+  background-color: var(--primary-color-hover) !important;
+  width: 36px !important;
 }
 
 #showChatToggle svg {
-  width: 24px;
-  height: 24px;
+  width: 20px !important;
+  height: 20px !important;
+  color: white !important;
+  transition: transform 0.3s ease !important;
 }
 
-#navAssistFloatingBar {
-  position: absolute;
-  display: none;
-  background-color: var(--primary-color); /* Use the primary color variable */
-  border-radius: 24px;
-  padding: 8px 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 2147483646;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+#showChatToggle:hover svg {
+  transform: translateX(-2px) !important;
 }
 
-#navAssistFloatingBar button {
-  background-color: transparent;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  border-radius: 50%;
-}
-
-#navAssistFloatingBar button:hover {
-  transform: scale(1.1);
-  background-color: var(--primary-color-hover);
-}
-
-#navAssistFloatingBar svg {
-  width: 20px;
-  height: 20px;
-}
-
-#navAssistFloatingBarTooltip {
-  position: absolute;
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-#navAssistPredictionBar {
+#chatWindow {
   position: fixed;
-  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  max-width: 300px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  background-color: var(--primary-color); /* Use the primary color variable */
-  color: white;
-  border-radius: 8px;
-  padding: 6px 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  top: 0;
+  right: 0;
+  width: 500px;
+  height: 100vh;
+  background-color: var(--background-color);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
   z-index: 2147483646;
-  pointer-events: none;
+  box-shadow: -2px 0 10px var(--shadow-color);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
-#navAssistPredictionBar span {
-  opacity: 0.7;
-  font-size: 0.9em;
-  margin-left: 8px;
-}
-
-#chatWindow.sidebar-mode #sidebarResizeHandle:hover {
-  background-color: var(--primary-color-hover);
-  opacity: 0.3;
-}
-
-/* Add these styles to your existing styles.css file */
-
-.download-item {
-  margin-bottom: 15px;
-  padding: 12px;
-  background-color: #f0f2f5;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.model-name {
-  font-weight: 600;
-  margin-bottom: 8px;
-  display: block;
-  font-size: 14px;
-}
-
-.progress-container {
-  margin-top: 10px;
-  display: block;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 10px;
-  background-color: #e0e0e0;
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.progress {
-  width: 0;
-  height: 100%;
-  background-color: var(--primary-color);
+#chatWindow.sidebar-mode {
+  width: 500px;
+  height: 100vh !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: auto !important;
+  left: auto !important;
+  border-radius: 0;
   transition: width 0.3s ease;
 }
 
-.status {
-  font-size: 12px;
-  color: #666;
-  margin-top: 5px;
-  display: block;
+#chatWindow.popup-mode {
+  width: 350px;
+  height: 500px;
+  top: 60px;
+  right: 40px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  transition: width 0.3s ease, height 0.3s ease;
+  overflow: hidden;
 }
 
-.download-button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
+#chatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--background-color);
+  user-select: none;
+  height: 48px;
+  box-sizing: border-box;
+}
+
+#chatMessages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#chatInput {
+  border-top: 1px solid var(--border-color);
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  background-color: var(--background-color);
+  align-items: center;
+  box-sizing: border-box;
+}
+
+#messageInput {
+  flex: 1;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px 16px;
+  resize: none;
+  background-color: var(--input-bg-color);
+  color: var(--text-color);
+  font-family: inherit;
   font-size: 14px;
-  transition: background-color 0.3s ease;
+  line-height: 20px;
+  max-height: 150px;
+  min-height: 40px;
+  height: 40px;
+  overflow-y: hidden;
+  transition: all 0.2s ease;
+  margin: 0;
 }
 
-.download-button:hover {
-  background-color: var(--primary-color-hover);
+#messageInput:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
 }
 
-/* Ensure all text is white in dark mode */
-[data-theme="dark"] .message-content,
-[data-theme="dark"] .message-content h1,
-[data-theme="dark"] .message-content h2,
-[data-theme="dark"] .message-content h3,
-[data-theme="dark"] .message-content h4,
-[data-theme="dark"] .message-content h5,
-[data-theme="dark"] .message-content h6,
-[data-theme="dark"] .message-content p,
-[data-theme="dark"] .message-content li,
-[data-theme="dark"] .message-content a {
+/* Add this to handle the auto-resize */
+#messageInput::-webkit-scrollbar {
+  display: none;
+}
+
+#messageInput[data-expanded="true"] {
+  overflow-y: auto;
+}
+
+#chatIcon {
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+#dragHandle {
+  display: flex;
+  align-items: center;
+  cursor: move;
+  user-select: none;
+  font-weight: 500;
+  font-size: 16px;
   color: var(--text-color);
 }
 
-/* Ensure code blocks have a slightly different background in dark mode for readability */
-[data-theme="dark"] .message-content pre,
-[data-theme="dark"] .message-content code {
-  background-color: #2c2c2c;
-  color: #e0e0e0;
+.chat-controls {
+  display: flex;
+  gap: 8px;
 }
 
-/* Adjust link color in dark mode for better visibility */
-[data-theme="dark"] .message-content a {
-  color: #7cb7ff;
-}
-
-/* Ensure that the copy button and its icon are visible in dark mode */
-[data-theme="dark"] .copy-button,
-[data-theme="dark"] .copy-button svg {
+.chat-controls button {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-color);
   opacity: 0.7;
+  transition: opacity 0.3s ease, background-color 0.3s ease;
+  border-radius: 8px;
 }
 
-[data-theme="dark"] .copy-button:hover,
-[data-theme="dark"] .copy-button:hover svg {
+.chat-controls button:hover {
   opacity: 1;
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
-/* Add this new rule to ensure h3 is white in dark mode */
-[data-theme="dark"] .message-content h3 {
-  color: var(--text-color);
-}
-
-/* Remove the new theme toggle styles */
-
-/* Update the copy button positioning for user messages */
-.user-message .copy-button {
-  left: 8px;
-  right: auto;
-}
-
-.user-message .copy-feedback {
-  left: 0;
-  right: auto;
-}
-
-/* Adjust padding for user messages to accommodate the copy button */
-.user-message {
-  padding-left: 36px; /* Increase left padding to make room for the copy button */
-}
-
-/* Ensure the copy button is visible on user messages */
-.user-message:hover .copy-button {
-  opacity: 1;
-}
+/* ... (keep all remaining existing styles) ... */
 
 body {
   transition: margin-right 0.3s ease;
 }
 
-#navAssistFloatingBar #aiEditInputContainer {
-  display: none;
-  margin-left: 10px;
+.message {
+  position: relative;
+  padding: 12px 16px;
+  border-radius: 16px;
+  max-width: 85%;
+  word-wrap: break-word;
+  line-height: 1.5;
+  font-size: 14px;
+  margin-bottom: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-#navAssistFloatingBar #aiEditInput {
-  background-color: var(--input-bg-color);
+.user-message {
+  align-self: flex-end;
+  background-color: var(--message-bg-user);
+  color: white;
+  margin-left: 15%;
+}
+
+.assistant-message {
+  align-self: flex-start;
+  background-color: var(--message-bg-assistant);
   color: var(--text-color);
+  margin-right: 15%;
+  padding-bottom: 36px; /* Add space for buttons */
+}
+
+.message-content {
+  white-space: pre-wrap;
+}
+
+.message-content p {
+  margin: 0 0 8px 0;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content pre {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 8px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.message-content code {
+  font-family: monospace;
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+#sendMessage {
+  background-color: var(--primary-color);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 1;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+#sendMessage:hover {
+  transform: scale(1.05);
+  background-color: var(--primary-color-hover);
+}
+
+#sendMessage svg {
+  width: 20px;
+  height: 20px;
+  transform: rotate(45deg);
+  margin: 0;
+  padding: 0;
+}
+
+.floating-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  z-index: 2147483645;
+  transition: all 0.3s ease;
+}
+
+.floating-bar button {
+  background-color: var(--background-color);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 4px 8px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-color);
   font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-#navAssistFloatingBar #aiEditInput:focus {
+.floating-bar button:hover {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.floating-bar button:hover svg {
+  color: white;
+}
+
+.floating-bar button svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-color);
+  transition: all 0.2s ease;
+}
+
+.floating-bar button span {
+  white-space: nowrap;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .floating-bar {
+  background-color: var(--background-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .floating-bar button {
+  background-color: var(--background-color);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .floating-bar button:hover {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+[data-theme="dark"] .floating-bar button svg {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .floating-bar button:hover svg {
+  color: white;
+}
+
+#navAssistFloatingBar {
+  position: fixed;
+  display: none;
+  gap: 8px;
+  padding: 8px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 2147483647;
+}
+
+#navAssistFloatingBar button {
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
+}
+
+#navAssistFloatingBar button:hover {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+#navAssistFloatingBar button svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-color);
+  transition: all 0.2s ease;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+#navAssistFloatingBar button:hover svg {
+  color: white;
+}
+
+#aiEditInputContainer {
+  display: none;
+  margin-left: 8px;
+}
+
+#aiEditInput {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  background-color: var(--input-bg-color);
+  color: var(--text-color);
+  min-width: 200px;
+  transition: border-color 0.2s ease;
+}
+
+#aiEditInput:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--primary-color-hover);
+  border-color: var(--primary-color);
+}
+
+#navAssistFloatingBarTooltip {
+  position: fixed;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  box-shadow: 0 2px 8px var(--shadow-color);
+  border: 1px solid var(--border-color);
+  z-index: 2147483647;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] #navAssistFloatingBar {
+  background-color: var(--background-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] #navAssistFloatingBar button {
+  background-color: var(--background-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] #navAssistFloatingBar button svg {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] #navAssistFloatingBar button:hover {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] #navAssistFloatingBar button:hover svg {
+  color: white;
+}
+
+[data-theme="dark"] #navAssistFloatingBarTooltip {
+  background-color: var(--background-color);
+  border-color: var(--border-color);
 }

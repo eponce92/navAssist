@@ -1,19 +1,49 @@
 (async function() {
-  const src = chrome.runtime.getURL('');
-  const utils = await import(src + 'utils.js');
-  const chatWindowCore = await import(src + 'chatWindowCore.js');
-  const chatWindowUI = await import(src + 'chatWindowUI.js');
-  const chatWindowVisibility = await import(src + 'chatWindowVisibility.js');
-  const floatingBar = await import(src + 'floatingBar.js');
-  const predictionBar = await import(src + 'predictionBar.js');
+  let modules = {};
+  
+  async function loadModules() {
+    try {
+      const src = chrome.runtime.getURL('');
+      const moduleNames = [
+        'utils',
+        'chatWindowCore',
+        'chatWindowUI',
+        'chatWindowVisibility',
+        'floatingBar',
+        'predictionBar',
+        'ttsService'
+      ];
+      
+      for (const name of moduleNames) {
+        try {
+          modules[name] = await import(src + name + '.js');
+          console.log(`Successfully loaded module: ${name}`);
+        } catch (error) {
+          console.error(`Error loading module ${name}:`, error);
+          modules[name] = null;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error in loadModules:', error);
+      return false;
+    }
+  }
+
+  // Wait for modules to load before continuing
+  if (!await loadModules()) {
+    console.error('Failed to load required modules. Extension may not function properly.');
+    return;
+  }
 
   let currentTheme = 'light';
 
   function applyTheme(isDarkTheme) {
     currentTheme = isDarkTheme ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
-    if (chatWindowCore.applyTheme) {
-      chatWindowCore.applyTheme(isDarkTheme);
+    if (modules.chatWindowCore?.applyTheme) {
+      modules.chatWindowCore.applyTheme(isDarkTheme);
     }
     console.log('Theme applied to document:', currentTheme);
     
@@ -52,7 +82,7 @@
     });
 
     console.log('DOM is ready, creating chat window');
-    const chatWindow = await chatWindowVisibility.default.createChatWindow();
+    const chatWindow = await modules.chatWindowVisibility.default.createChatWindow();
     console.log('Chat window created:', chatWindow);
 
     // Load tab-specific settings
@@ -60,15 +90,19 @@
       const tabId = response.tabId;
       chrome.storage.local.get(`tabSettings_${tabId}`, function(result) {
         const tabSettings = result[`tabSettings_${tabId}`] || {};
-        chatWindowVisibility.default.loadTabSettings(tabSettings);
+        modules.chatWindowVisibility.default.loadTabSettings(tabSettings);
       });
     });
 
-    chrome.storage.local.get('isPredictionBarEnabled', function(result) {
-      const isPredictionBarEnabled = result.isPredictionBarEnabled === true; // Default to false if not set
-      if (isPredictionBarEnabled) {
-        predictionBar.default.createPredictionBar();
-        predictionBar.default.addPredictionListeners();
+    // Create prediction bar only if enabled
+    chrome.storage.local.get('isPredictionBarEnabled', function(data) {
+      const isEnabled = data.isPredictionBarEnabled === true; // Must be explicitly true
+      if (isEnabled) {
+        modules.predictionBar.default.createPredictionBar();
+        modules.predictionBar.default.addPredictionListeners();
+      } else {
+        modules.predictionBar.default.removePredictionBar();
+        modules.predictionBar.default.removePredictionListeners();
       }
     });
 
@@ -86,12 +120,12 @@
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('selectionchange', handleSelectionChange);
     document.addEventListener('keydown', handleKeyDown);
-    window.matchMedia('(prefers-color-scheme: dark)').addListener(chatWindowCore.applyTheme);
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(modules.chatWindowCore.applyTheme);
     document.addEventListener('visibilitychange', handleVisibilityChange);
   }
 
   function handleMouseUp(e) {
-    if (!chatWindowVisibility.default.isExtensionActive) return;
+    if (!modules.chatWindowVisibility.default.isExtensionActive) return;
 
     console.log('mouseup event triggered');
 
@@ -99,46 +133,46 @@
     selectedText = selection.toString().trim();
 
     console.log('Selected text:', selectedText);
-    console.log('isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
+    console.log('isFloatingBarVisible:', modules.floatingBar.default.isFloatingBarActuallyVisible());
 
     if (selectedText) {
       console.log('Showing floating bar');
       lastSelection = selection.getRangeAt(0).cloneRange();
       const rect = lastSelection.getBoundingClientRect();
-      floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
-      floatingBar.default.updateSelection(selectedText, lastSelection);
-    } else if (!selectedText && floatingBar.default.isFloatingBarActuallyVisible() && !isCtrlASelection) {
+      modules.floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
+      modules.floatingBar.default.updateSelection(selectedText, lastSelection);
+    } else if (!selectedText && modules.floatingBar.default.isFloatingBarActuallyVisible() && !isCtrlASelection) {
       console.log('Hiding floating bar');
-      floatingBar.default.hideFloatingBar();
+      modules.floatingBar.default.hideFloatingBar();
     } else {
-      console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', floatingBar.default.isFloatingBarActuallyVisible());
+      console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', modules.floatingBar.default.isFloatingBarActuallyVisible());
     }
 
     isCtrlASelection = false;
-    predictionBar.default.hidePredictionBar();
+    modules.predictionBar.default.hidePredictionBar();
   }
 
   function handleMouseDown(e) {
-    if (floatingBar.default.isFloatingBarActuallyVisible() && 
-        !floatingBar.default.isFloatingBarContainingTarget(e.target) && 
+    if (modules.floatingBar.default.isFloatingBarActuallyVisible() && 
+        !modules.floatingBar.default.isFloatingBarContainingTarget(e.target) && 
         e.target.id !== 'navAssistFloatingBarTooltip' &&
-        !floatingBar.default.isEditingAI()) {
+        !modules.floatingBar.default.isEditingAI()) {
       console.log('Mousedown outside floating bar, hiding it');
-      floatingBar.default.hideFloatingBar(true);
+      modules.floatingBar.default.hideFloatingBar(true);
     }
   }
 
   function handleSelectionChange() {
-    if (!chatWindowVisibility.default.isExtensionActive) return;
+    if (!modules.chatWindowVisibility.default.isExtensionActive) return;
 
     const selection = window.getSelection();
     if (selection.toString().trim() === '') {
-      floatingBar.default.hideFloatingBar();
+      modules.floatingBar.default.hideFloatingBar();
     }
   }
 
   function handleKeyDown(e) {
-    if (!chatWindowVisibility.default.isExtensionActive) return;
+    if (!modules.chatWindowVisibility.default.isExtensionActive) return;
 
     if (e.ctrlKey && e.key === 'a') {
       setTimeout(() => {
@@ -151,27 +185,27 @@
           lastSelection = selection.getRangeAt(0).cloneRange();
           const rect = lastSelection.getBoundingClientRect();
           console.log('Selection rect:', rect);
-          floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY, true);
-          floatingBar.default.updateSelection(selectedText, lastSelection);  // Add this line
+          modules.floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY, true);
+          modules.floatingBar.default.updateSelection(selectedText, lastSelection);  // Add this line
         }
       }, 0);
     }
 
-    if (e.ctrlKey && e.code === 'Space' && floatingBar.default.isFloatingBarActuallyVisible()) {
+    if (e.ctrlKey && e.code === 'Space' && modules.floatingBar.default.isFloatingBarActuallyVisible()) {
       e.preventDefault();
-      floatingBar.default.fixGrammar();
+      modules.floatingBar.default.fixGrammar();
     }
   }
 
   function handleVisibilityChange() {
     if (!document.hidden) {
-      chatWindowVisibility.default.updateChatWindowVisibility();
+      modules.chatWindowVisibility.default.updateChatWindowVisibility();
     }
   }
 
   function showChatToggle() {
-    if (!chatWindowVisibility.default.isExtensionActive) return;
-
+    console.log('Showing chat toggle button');
+    
     let toggleButton = document.getElementById('showChatToggle');
     if (!toggleButton) {
       toggleButton = document.createElement('button');
@@ -183,65 +217,88 @@
       `;
       toggleButton.addEventListener('click', handleShowChatWindow);
       document.body.appendChild(toggleButton);
-      
-      // Position the toggle button on the right side of the window
-      toggleButton.style.position = 'fixed';
-      toggleButton.style.right = '0';
-      toggleButton.style.top = '50%';
-      toggleButton.style.transform = 'translateY(-50%)';
     }
+    
+    // Force button visibility and styles
     toggleButton.style.display = 'flex';
+    toggleButton.style.position = 'fixed';
+    toggleButton.style.right = '0';
+    toggleButton.style.top = '50%';
+    toggleButton.style.transform = 'translateY(-50%)';
+    toggleButton.style.zIndex = '2147483647';
+    toggleButton.style.backgroundColor = 'var(--primary-color)';
+    toggleButton.style.color = 'white';
+    
+    console.log('Chat toggle button created/updated');
   }
 
   function handleShowChatWindow() {
     console.log('Show chat window button clicked');
-    chatWindowVisibility.default.showChatWindow();
-    
-    // Apply theme after showing the window
-    chrome.storage.sync.get('isDarkTheme', function(data) {
-      const isDarkTheme = data.isDarkTheme !== false;
-      applyTheme(isDarkTheme);
-    });
-    
-    // Enable dragging and resizing if in popup mode
-    if (!chatWindowVisibility.default.isSidebar) {
-      const chatWindow = document.querySelector('#chatWindow');
-      chatWindowUI.default.enableDragging(chatWindow);
-      chatWindowUI.default.enableResizing(chatWindow);
+    try {
+      // Check if extension context is still valid
+      if (!chrome.runtime?.id) {
+        console.warn('Extension context invalidated, reinitializing...');
+        initializeExtension();
+        return;
+      }
+      
+      modules.chatWindowVisibility.default.showChatWindow();
+      
+      // Apply theme after showing the window
+      chrome.storage.sync.get('isDarkTheme', function(data) {
+        const isDarkTheme = data.isDarkTheme !== false;
+        applyTheme(isDarkTheme);
+      });
+      
+      // Enable dragging and resizing if in popup mode
+      if (!modules.chatWindowVisibility.default.isSidebar) {
+        const chatWindow = document.querySelector('#chatWindow');
+        modules.chatWindowUI.default.enableDragging(chatWindow);
+        modules.chatWindowUI.default.enableResizing(chatWindow);
+      }
+    } catch (error) {
+      console.error('Error showing chat window:', error);
+      if (error.message.includes('Extension context invalidated')) {
+        console.log('Reinitializing extension...');
+        initializeExtension();
+      }
     }
   }
 
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'toggleChat') {
-      chatWindowVisibility.default.toggleSidebarMode();
-    }
-    if (request.action === 'logFinalResponse') {
-      console.log('Final response from model:', request.response);
-    }
-    if (request.action === 'toggleExtensionPower') {
-      chatWindowVisibility.default.handleToggleExtensionPower(request.isEnabled);
-    }
-    if (request.action === 'getPageContent') {
-      const pageContent = document.body.innerText;
-      sendResponse(pageContent);
-    }
-    if (request.action === 'toggleTheme') {
-      applyTheme(request.isDarkTheme);
-    }
-    if (request.action === 'togglePredictionBar') {
-      handleTogglePredictionBar(request.isEnabled);
+// Add message listeners
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'ping') {
+    sendResponse({ready: true});
+    return true;
+  }
+    switch (request.action) {
+      case 'toggleChat':
+        modules.chatWindowVisibility.default.toggleSidebarMode();
+        return false;
+      case 'logFinalResponse':
+        console.log('Final response from model:', request.response);
+        return false;
+      case 'toggleExtensionPower':
+        modules.chatWindowVisibility.default.handleToggleExtensionPower(request.isEnabled);
+        return false;
+      case 'getPageContent':
+        const pageContent = document.body.innerText;
+        sendResponse(pageContent);
+        return true;
+      case 'toggleTheme':
+        applyTheme(request.isDarkTheme);
+        return false;
+      case 'togglePredictionBar':
+        if (request.isEnabled) {
+          modules.predictionBar.default.createPredictionBar();
+          modules.predictionBar.default.addPredictionListeners();
+        } else {
+          modules.predictionBar.default.removePredictionBar();
+          modules.predictionBar.default.removePredictionListeners();
+        }
+        return false;
     }
   });
-
-  function handleTogglePredictionBar(isEnabled) {
-    if (isEnabled) {
-      predictionBar.default.createPredictionBar();
-      predictionBar.default.addPredictionListeners();
-    } else {
-      predictionBar.default.removePredictionBar();
-      predictionBar.default.removePredictionListeners();
-    }
-  }
 
   initializeExtension();
 })();

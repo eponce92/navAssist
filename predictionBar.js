@@ -9,6 +9,15 @@ let isTyping = false;
 let typingTimer = null;
 const TYPING_INTERVAL = 700; // ms
 
+function handleRuntimeError() {
+  if (chrome.runtime.lastError) {
+    console.error('Extension context invalidated, reloading page...');
+    window.location.reload();
+    return true;
+  }
+  return false;
+}
+
 function createPredictionBar() {
   if (predictionBar) return;
 
@@ -170,50 +179,64 @@ function getCurrentPageUrl() {
 }
 
 function triggerPrediction(element) {
-  const textBeforeCursor = getTextBeforeCursor(element);
-  const currentUrl = getCurrentPageUrl();
-  
-  const prompt = `Given the following context and text, 
-  predict the next few words or complete the current word. 
-  Predict what the user is typing next, as if you were the user.\n
-  Provide the output in JSON format with the following fields:\n
-  - incomplete_sentence: The incomplete sentence from the input, 
-  including any partial word\n
-  - complete_sentence: A possible completion of the sentence\n\n
-  Examples:\n
-  Input: "Hello, my name is Ernes"\n
-  Output: {\n  
-    "incomplete_sentence": "Hello, my name is Ernes",\n  
-    "complete_sentence": "Hello, my name is Ernesto and I am a software engineer"\n
-  }\n\n
-  Input: "We booked a table for si"\n
-  Output: {\n  
-    "incomplete_sentence": "We booked a table for si",\n  
-    "complete_sentence": "We booked a table for six people at 8pm tonight"\n
-  }\n
-  DONT USE MARKDOWN, JUST PLAIN TEXT, DONT USE bullet quotes for code block.\n
-  Now, predict for the following text:\n
-  ${textBeforeCursor}\n`;
+  try {
+    const textBeforeCursor = getTextBeforeCursor(element);
+    const currentUrl = getCurrentPageUrl();
+    
+    const prompt = `Given the following context and text, 
+    predict the next few words or complete the current word. 
+    Predict what the user is typing next, as if you were the user.\n
+    Provide the output in JSON format with the following fields:\n
+    - incomplete_sentence: The incomplete sentence from the input, 
+    including any partial word\n
+    - complete_sentence: A possible completion of the sentence\n\n
+    Examples:\n
+    Input: "Hello, my name is Ernes"\n
+    Output: {\n  
+      "incomplete_sentence": "Hello, my name is Ernes",\n  
+      "complete_sentence": "Hello, my name is Ernesto and I am a software engineer"\n
+    }\n\n
+    Input: "We booked a table for si"\n
+    Output: {\n  
+      "incomplete_sentence": "We booked a table for si",\n  
+      "complete_sentence": "We booked a table for six people at 8pm tonight"\n
+    }\n
+    DONT USE MARKDOWN, JUST PLAIN TEXT, DONT USE bullet quotes for code block.\n
+    Now, predict for the following text:\n
+    ${textBeforeCursor}\n`;
 
-  chrome.runtime.sendMessage({ action: 'getPrediction', prompt: prompt }, (response) => {
-    if (response && response.prediction) {
-      console.log('Full raw answer from model:', response.prediction);
-      
-      try {
-        jsonResponse = JSON.parse(response.prediction);
-        currentPrediction = jsonResponse.complete_sentence.substring(jsonResponse.incomplete_sentence.length).trim();
-        const cursorPos = getCursorPosition(element);
-        showPredictionBar(
-          cursorPos.x + window.scrollX,
-          cursorPos.y + window.scrollY,
-          currentPrediction
-        );
-      } catch (error) {
-        console.error('Error parsing JSON response:', error);
-        jsonResponse = null;
+    chrome.runtime.sendMessage({ action: 'getPrediction', prompt: prompt }, (response) => {
+      if (handleRuntimeError()) return;
+
+      if (response?.error) {
+        console.error('Error getting prediction:', response.error);
+        return;
       }
+
+      if (response?.prediction) {
+        console.log('Full raw answer from model:', response.prediction);
+        
+        try {
+          jsonResponse = JSON.parse(response.prediction);
+          currentPrediction = jsonResponse.complete_sentence.substring(jsonResponse.incomplete_sentence.length).trim();
+          const cursorPos = getCursorPosition(element);
+          showPredictionBar(
+            cursorPos.x + window.scrollX,
+            cursorPos.y + window.scrollY,
+            currentPrediction
+          );
+        } catch (error) {
+          console.error('Error parsing JSON response:', error);
+          jsonResponse = null;
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error in triggerPrediction:', error);
+    if (error.message.includes('Extension context invalidated')) {
+      window.location.reload();
     }
-  });
+  }
 }
 
 function getCursorPosition(element) {

@@ -40,9 +40,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 function handleSendMessage(request, sender, tabId) {
   console.log('Handling send message request:', request);
-  chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+  chrome.storage.sync.get([
+    'selectedProvider', 
+    'selectedModel', 
+    'openrouterApiKey',
+    'openrouterSelectedModel',
+    'ollamaSelectedModel'
+  ], (data) => {
     const provider = data.selectedProvider || 'ollama';
-    const model = data.selectedModel || 'llama3.2';
+    let model;
+    
+    if (provider === 'ollama') {
+      model = data.ollamaSelectedModel || data.selectedModel || 'llama3.2';
+    } else {
+      model = data.openrouterSelectedModel || 'deepseek/deepseek-chat';
+    }
+    
     const apiKey = data.openrouterApiKey;
     
     getChatHistory(tabId, (history) => {
@@ -69,10 +82,23 @@ function handleSummarizeContent(sender, tabId) {
 
     console.log('Page content received, length:', pageContent.length);
     
-    chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
-      const provider = data.selectedProvider || 'ollama';
-      const model = data.selectedModel || 'llama3.2';
-      const apiKey = data.openrouterApiKey;
+  chrome.storage.sync.get([
+    'selectedProvider', 
+    'selectedModel', 
+    'openrouterApiKey',
+    'openrouterSelectedModel',
+    'ollamaSelectedModel'
+  ], (data) => {
+    const provider = data.selectedProvider || 'ollama';
+    let model;
+    
+    if (provider === 'ollama') {
+      model = data.ollamaSelectedModel || data.selectedModel || 'llama3.2';
+    } else {
+      model = data.openrouterSelectedModel || 'deepseek/deepseek-chat';
+    }
+    
+    const apiKey = data.openrouterApiKey;
       
       const prompt = 
         `USE MARKDOWN FORMAT FOR YOUR RESPONSE !!!
@@ -102,6 +128,26 @@ function streamResponse(provider, model, apiKey, messages, tabId, updateChatHist
   
   let apiUrl, headers, body;
   
+  if (!provider || !messages || messages.length === 0) {
+    console.error('Invalid parameters:', { provider, messages });
+    chrome.tabs.sendMessage(tabId, {
+      action: 'streamResponse', 
+      reply: 'Error: Missing required parameters', 
+      done: true
+    });
+    return;
+  }
+
+  if (provider === 'openrouter' && !apiKey) {
+    console.error('OpenRouter API key is missing');
+    chrome.tabs.sendMessage(tabId, {
+      action: 'streamResponse', 
+      reply: 'Error: OpenRouter API key is required', 
+      done: true
+    });
+    return;
+  }
+
   if (provider === 'ollama') {
     apiUrl = 'http://localhost:11434/v1/chat/completions';
     headers = {
@@ -121,19 +167,56 @@ function streamResponse(provider, model, apiKey, messages, tabId, updateChatHist
       'X-Title': 'navAssist'
     };
     body = JSON.stringify({
-      model: "meta-llama/llama-3.1-70b-instruct:free",
+      model: model || "deepseek/deepseek-chat",
       messages: messages,
-      stream: true
+      stream: true,
+      max_tokens: 2000,
+      temperature: 0.7,
+      context_length: 64000,
+      top_p: 0.9,
+      frequency_penalty: 0,
+      presence_penalty: 0
     });
   }
+
+  console.log('Request configuration:', {
+    provider,
+    apiUrl,
+    model: model || "deepseek/deepseek-chat",
+    messageCount: messages.length,
+    headers: {
+      ...headers,
+      'Authorization': headers.Authorization ? '(set)' : '(not set)'
+    }
+  });
+
+  console.log('Making API request:', {
+    url: apiUrl,
+    model: JSON.parse(body).model,
+    messageCount: messages.length
+  });
 
   fetch(apiUrl, {
     method: 'POST',
     headers: headers,
     body: body
   })
-  .then(response => {
-    console.log('Received response from API');
+  .then(async response => {
+    console.log('Received response from API:', {
+      status: response.status,
+      statusText: response.statusText
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    if (!response.body) {
+      throw new Error('No response body received');
+    }
+
     const reader = response.body.getReader();
     let accumulatedResponse = '';
     let buffer = '';
@@ -165,18 +248,26 @@ function streamResponse(provider, model, apiKey, messages, tabId, updateChatHist
           if (line.startsWith('data: ') && line !== 'data: [DONE]') {
             try {
               const jsonData = JSON.parse(line.slice(6));
+              console.log('Received chunk:', jsonData);
+              
+              if (!jsonData.choices || !jsonData.choices[0] || !jsonData.choices[0].delta) {
+                console.error('Invalid chunk format:', jsonData);
+                return;
+              }
+
               const content = jsonData.choices[0].delta.content;
               if (content) {
                 accumulatedResponse += content;
                 buffer += content;
                 
                 if (buffer.length > 20 || /[.!?]/.test(buffer)) {
+                  console.log('Sending buffer:', buffer);
                   chrome.tabs.sendMessage(tabId, {action: 'streamResponse', reply: buffer, done: false});
                   buffer = '';
                 }
               }
             } catch (error) {
-              console.error('Error parsing JSON:', error);
+              console.error('Error parsing JSON:', error, 'Line:', line);
             }
           }
         });
@@ -214,27 +305,79 @@ function clearChatHistory(tabId) {
 // });
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set({isExtensionActive: true});
+  // Only set these values if they don't already exist
+  chrome.storage.local.get(['isExtensionActive', 'isPredictionBarEnabled'], (data) => {
+    const updates = {};
+    if (data.isExtensionActive === undefined) {
+      updates.isExtensionActive = true;
+    }
+    if (data.isPredictionBarEnabled === undefined) {
+      updates.isPredictionBarEnabled = false; // Default to false
+    }
+    if (Object.keys(updates).length > 0) {
+      chrome.storage.local.set(updates);
+    }
+  });
 });
 
 chrome.tabs.onCreated.addListener((tab) => {
   chrome.storage.local.get('isExtensionActive', (data) => {
     const isActive = data.isExtensionActive !== false; // Default to true if not set
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'toggleExtensionPower',
-      isEnabled: isActive
-    });
+    // Wait for content script to be ready
+    const retry = (attempt = 0) => {
+      chrome.tabs.sendMessage(tab.id, {action: 'ping'}, (response) => {
+        if (chrome.runtime.lastError) {
+          if (attempt < 5) {
+            setTimeout(() => retry(attempt + 1), 200);
+          } else {
+            console.error('Content script not ready after retries');
+          }
+          return;
+        }
+        // Content script is ready, send the actual message
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'toggleExtensionPower',
+          isEnabled: isActive
+        });
+      });
+    };
+    retry();
   });
 });
 
 function handleFixGrammar(prompt, tabId, sendResponse) {
-  chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+  chrome.storage.sync.get([
+    'selectedProvider', 
+    'selectedModel', 
+    'openrouterApiKey',
+    'openrouterSelectedModel',
+    'ollamaSelectedModel'
+  ], (data) => {
     const provider = data.selectedProvider || 'ollama';
-    const model = data.selectedModel || 'llama3.2';
+    let model;
+    
+    if (provider === 'ollama') {
+      model = data.ollamaSelectedModel || data.selectedModel || 'llama3.2';
+    } else {
+      model = data.openrouterSelectedModel || 'deepseek/deepseek-chat';
+    }
+    
     const apiKey = data.openrouterApiKey;
     
     let apiUrl, headers, body;
     
+    if (!provider || !prompt) {
+      console.error('Invalid parameters:', { provider, prompt });
+      sendResponse({ error: 'Missing required parameters' });
+      return;
+    }
+
+    if (provider === 'openrouter' && !apiKey) {
+      console.error('OpenRouter API key is missing');
+      sendResponse({ error: 'OpenRouter API key is required' });
+      return;
+    }
+
     if (provider === 'ollama') {
       apiUrl = 'http://localhost:11434/v1/chat/completions';
       headers = {
@@ -254,39 +397,90 @@ function handleFixGrammar(prompt, tabId, sendResponse) {
         'X-Title': 'navAssist'
       };
       body = JSON.stringify({
-        model: "meta-llama/llama-3.1-70b-instruct:free",
+        model: model || "deepseek/deepseek-chat",
         messages: [{ role: 'user', content: prompt }],
-        stream: false
+        stream: false,
+        max_tokens: 2000,
+        temperature: 0.7,
+        context_length: 64000,
+        top_p: 0.9,
+        frequency_penalty: 0,
+        presence_penalty: 0
       });
     }
+
+    console.log('Request configuration:', {
+      provider,
+      apiUrl,
+      model: model || "deepseek/deepseek-chat",
+      headers: {
+        ...headers,
+        'Authorization': headers.Authorization ? '(set)' : '(not set)'
+      }
+    });
     
     fetch(apiUrl, {
       method: 'POST',
       headers: headers,
       body: body
     })
-    .then(response => response.json())
+    .then(async response => {
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    })
     .then(data => {
       console.log('API response:', data);
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Invalid response format from API');
+      }
       const fixedText = data.choices[0].message.content.trim();
       console.log('Fixed text:', fixedText);
       sendResponse({ fixedText: fixedText });
     })
     .catch(error => {
       console.error('Error:', error);
-      sendResponse({ error: 'Failed to fix grammar' });
+      sendResponse({ error: error.message || 'Failed to fix grammar' });
     });
   });
 }
 
 function handleGetPrediction(prompt, tabId, sendResponse) {
-  chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+  chrome.storage.sync.get([
+    'selectedProvider', 
+    'selectedModel', 
+    'openrouterApiKey',
+    'openrouterSelectedModel',
+    'ollamaSelectedModel'
+  ], (data) => {
     const provider = data.selectedProvider || 'ollama';
-    const model = data.selectedModel || 'llama3.2';
+    let model;
+    
+    if (provider === 'ollama') {
+      model = data.ollamaSelectedModel || data.selectedModel || 'llama3.2';
+    } else {
+      model = data.openrouterSelectedModel || 'deepseek/deepseek-chat';
+    }
+    
     const apiKey = data.openrouterApiKey;
     
     let apiUrl, headers, body;
     
+    if (!provider || !prompt) {
+      console.error('Invalid parameters:', { provider, prompt });
+      sendResponse({ error: 'Missing required parameters' });
+      return;
+    }
+
+    if (provider === 'openrouter' && !apiKey) {
+      console.error('OpenRouter API key is missing');
+      sendResponse({ error: 'OpenRouter API key is required' });
+      return;
+    }
+
     if (provider === 'ollama') {
       apiUrl = 'http://localhost:11434/v1/chat/completions';
       headers = {
@@ -306,27 +500,53 @@ function handleGetPrediction(prompt, tabId, sendResponse) {
         'X-Title': 'navAssist'
       };
       body = JSON.stringify({
-        model: "meta-llama/llama-3.1-70b-instruct:free",
+        model: model || "deepseek/deepseek-chat",
         messages: [{ role: 'user', content: prompt }],
-        stream: false
+        stream: false,
+        max_tokens: 2000,
+        temperature: 0.7,
+        context_length: 64000,
+        top_p: 0.9,
+        frequency_penalty: 0,
+        presence_penalty: 0
       });
     }
+
+    console.log('Request configuration:', {
+      provider,
+      apiUrl,
+      model: model || "deepseek/deepseek-chat",
+      headers: {
+        ...headers,
+        'Authorization': headers.Authorization ? '(set)' : '(not set)'
+      }
+    });
     
     fetch(apiUrl, {
       method: 'POST',
       headers: headers,
       body: body
     })
-    .then(response => response.json())
+    .then(async response => {
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    })
     .then(data => {
       console.log('API response:', data);
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Invalid response format from API');
+      }
       const prediction = data.choices[0].message.content.trim();
       console.log('Prediction:', prediction);
       sendResponse({ prediction: prediction });
     })
     .catch(error => {
       console.error('Error:', error);
-      sendResponse({ error: 'Failed to get prediction' });
+      sendResponse({ error: error.message || 'Failed to get prediction' });
     });
   });
 }
@@ -359,13 +579,38 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 function handleAiEdit(prompt, tabId, sendResponse) {
-  chrome.storage.sync.get(['selectedProvider', 'selectedModel', 'openrouterApiKey'], (data) => {
+  chrome.storage.sync.get([
+    'selectedProvider', 
+    'selectedModel', 
+    'openrouterApiKey',
+    'openrouterSelectedModel',
+    'ollamaSelectedModel'
+  ], (data) => {
     const provider = data.selectedProvider || 'ollama';
-    const model = data.selectedModel || 'llama3.2';
+    let model;
+    
+    if (provider === 'ollama') {
+      model = data.ollamaSelectedModel || data.selectedModel || 'llama3.2';
+    } else {
+      model = data.openrouterSelectedModel || 'deepseek/deepseek-chat';
+    }
+    
     const apiKey = data.openrouterApiKey;
     
     let apiUrl, headers, body;
     
+    if (!provider || !prompt) {
+      console.error('Invalid parameters:', { provider, prompt });
+      sendResponse({ error: 'Missing required parameters' });
+      return;
+    }
+
+    if (provider === 'openrouter' && !apiKey) {
+      console.error('OpenRouter API key is missing');
+      sendResponse({ error: 'OpenRouter API key is required' });
+      return;
+    }
+
     if (provider === 'ollama') {
       apiUrl = 'http://localhost:11434/v1/chat/completions';
       headers = {
@@ -385,27 +630,53 @@ function handleAiEdit(prompt, tabId, sendResponse) {
         'X-Title': 'navAssist'
       };
       body = JSON.stringify({
-        model: "meta-llama/llama-3.1-70b-instruct:free",
+        model: model || "deepseek/deepseek-chat",
         messages: [{ role: 'user', content: prompt }],
-        stream: false
+        stream: false,
+        max_tokens: 2000,
+        temperature: 0.7,
+        context_length: 64000,
+        top_p: 0.9,
+        frequency_penalty: 0,
+        presence_penalty: 0
       });
     }
+
+    console.log('Request configuration:', {
+      provider,
+      apiUrl,
+      model: model || "deepseek/deepseek-chat",
+      headers: {
+        ...headers,
+        'Authorization': headers.Authorization ? '(set)' : '(not set)'
+      }
+    });
     
     fetch(apiUrl, {
       method: 'POST',
       headers: headers,
       body: body
     })
-    .then(response => response.json())
+    .then(async response => {
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    })
     .then(data => {
       console.log('API response:', data);
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Invalid response format from API');
+      }
       const editedText = data.choices[0].message.content.trim();
       console.log('Edited text:', editedText);
       sendResponse({ editedText: editedText });
     })
     .catch(error => {
       console.error('Error:', error);
-      sendResponse({ error: 'Failed to edit text' });
+      sendResponse({ error: error.message || 'Failed to edit text' });
     });
   });
 }

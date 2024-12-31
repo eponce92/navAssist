@@ -12,160 +12,173 @@ let isSidebar = true;
 let isChatVisible = false;
 let initialSidebarWidth = 500;
 
+function handleRuntimeError() {
+  if (chrome.runtime.lastError) {
+    console.error('Extension context invalidated, reloading page...');
+    window.location.reload();
+    return true;
+  }
+  return false;
+}
+
 function createChatWindow() {
-  chatWindow = document.createElement('div');
-  chatWindow.id = 'chatWindow';
-  
-  chatWindow.style.display = 'none'; // Always start hidden
-  
-  chatWindow.innerHTML = `
-    <div id="chatHeader">
-      <div id="dragHandle">
-        <img src="${chrome.runtime.getURL('icon.png')}" alt="navAssist Icon" id="chatIcon">
-        <span>navAssist</span>
+  try {
+    chatWindow = document.createElement('div');
+    chatWindow.id = 'chatWindow';
+    
+    chatWindow.style.display = 'none'; // Always start hidden
+    
+    chatWindow.innerHTML = `
+      <div id="chatHeader">
+        <div id="dragHandle">
+          <img src="${chrome.runtime.getURL('icon.png')}" alt="navAssist Icon" id="chatIcon">
+          <span>navAssist</span>
+        </div>
+        <div class="chat-controls">
+          <button id="toggleSidebar" title="Toggle Sidebar/Popup">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+            </svg>
+          </button>
+          <button id="summarizeContent" title="Summarize page content">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="21" y1="10" x2="7" y2="10"></line>
+              <line x1="21" y1="6" x2="3" y2="6"></line>
+              <line x1="21" y1="14" x2="3" y2="14"></line>
+              <line x1="21" y1="18" x2="7" y2="18"></line>
+            </svg>
+          </button>
+          <button id="restartChat" title="Restart Chat">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+            </svg>
+          </button>
+          <button id="hideChat" title="Hide Chat">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
       </div>
-      <div class="chat-controls">
-        <button id="toggleSidebar" title="Toggle Sidebar/Popup">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="9" y1="3" x2="9" y2="21"></line>
-          </svg>
-        </button>
-        <button id="summarizeContent" title="Summarize page content">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="21" y1="10" x2="7" y2="10"></line>
-            <line x1="21" y1="6" x2="3" y2="6"></line>
-            <line x1="21" y1="14" x2="3" y2="14"></line>
-            <line x1="21" y1="18" x2="7" y2="18"></line>
-          </svg>
-        </button>
-        <button id="restartChat" title="Restart Chat">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
-          </svg>
-        </button>
-        <button id="hideChat" title="Hide Chat">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
+      <div id="chatMessages"></div>
+      <div id="chatInput">
+        <textarea id="messageInput" placeholder="Type your message..." rows="1"></textarea>
+        <button id="sendMessage" title="Send message">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
           </svg>
         </button>
       </div>
-    </div>
-    <div id="chatMessages"></div>
-    <div id="chatInput">
-      <textarea id="messageInput" placeholder="Type your message..." rows="1"></textarea>
-      <button id="sendMessage">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"></line>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
-      </button>
-    </div>
-    <div id="resizeHandle"></div>
-    <div id="sidebarResizeHandle"></div>
-  `;
-  document.body.appendChild(chatWindow);
+      <div id="resizeHandle"></div>
+      <div id="sidebarResizeHandle"></div>
+    `;
+    document.body.appendChild(chatWindow);
 
-  // Add event listeners immediately after creating the chat window
-  addEventListeners();
+    // Add event listeners immediately after creating the chat window
+    addEventListeners();
 
-  // Initialize UI handling
-  chatWindowUI.initializeChatWindowUI(chatWindow);
+    // Initialize UI handling
+    chatWindowUI.initializeChatWindowUI(chatWindow);
 
-  // Set the chatWindow in chatWindowCore
-  chatWindowCore.setChatWindow(chatWindow);
+    // Set the chatWindow in chatWindowCore
+    chatWindowCore.setChatWindow(chatWindow);
 
-  // Update the send button icon
-  chatWindowCore.updateSendButton();
+    // Update the send button icon
+    chatWindowCore.updateSendButton();
 
-  // Apply the initial theme
-  chrome.storage.sync.get('isDarkTheme', function(data) {
-    chatWindowCore.applyTheme(data.isDarkTheme !== false);
-  });
-
-  // Load tab-specific settings
-  chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
-    const tabId = response.tabId;
-    chrome.storage.local.get(`tabSettings_${tabId}`, function(result) {
-      const tabSettings = result[`tabSettings_${tabId}`] || {};
-      isSidebar = tabSettings.isSidebar !== undefined ? tabSettings.isSidebar : true;
-      isChatVisible = tabSettings.isChatVisible !== undefined ? tabSettings.isChatVisible : false;
-      initialSidebarWidth = tabSettings.sidebarWidth || 500;
-
-      updateChatWindowVisibility();
+    // Apply the initial theme
+    chrome.storage.sync.get('isDarkTheme', function(data) {
+      if (handleRuntimeError()) return;
+      chatWindowCore.applyTheme(data.isDarkTheme !== false);
     });
-  });
 
-  // Load chat history
-  chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
-    const tabId = response.tabId;
-    chrome.runtime.sendMessage({action: 'getChatHistory', tabId: tabId}, function(history) {
-      if (history && history.length > 0) {
-        history.forEach(message => {
-          chatWindowCore.addMessage(message.role === 'user' ? 'User' : 'Assistant', message.content);
-        });
-      }
+    // Load tab-specific settings
+    chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+      if (handleRuntimeError()) return;
+      const tabId = response.tabId;
+      chrome.storage.local.get(`tabSettings_${tabId}`, function(result) {
+        if (handleRuntimeError()) return;
+        const tabSettings = result[`tabSettings_${tabId}`] || {};
+        isSidebar = tabSettings.isSidebar !== undefined ? tabSettings.isSidebar : true;
+        isChatVisible = tabSettings.isChatVisible !== undefined ? tabSettings.isChatVisible : false;
+        initialSidebarWidth = tabSettings.sidebarWidth || 500;
+
+        updateChatWindowVisibility();
+      });
     });
-  });
 
-  return chatWindow;
+    // Load chat history
+    chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+      if (handleRuntimeError()) return;
+      const tabId = response.tabId;
+      chrome.runtime.sendMessage({action: 'getChatHistory', tabId: tabId}, function(history) {
+        if (handleRuntimeError()) return;
+        if (history && history.length > 0) {
+          history.forEach(message => {
+            chatWindowCore.addMessage(message.role === 'user' ? 'User' : 'Assistant', message.content);
+          });
+        }
+      });
+    });
+
+    return chatWindow;
+  } catch (error) {
+    console.error('Error in createChatWindow:', error);
+    window.location.reload();
+  }
 }
 
 function addEventListeners() {
-  // console.log('Adding event listeners');  // Remove this line
-  
-  const sendButton = chatWindow.querySelector('#sendMessage');
-  if (sendButton) {
-    sendButton.addEventListener('click', chatWindowCore.sendMessage);
-    // console.log('Send button found and listener added');  // Remove this line
-  } else {
-    console.error('Send button not found');
-  }
+  try {
+    const sendButton = chatWindow.querySelector('#sendMessage');
+    if (sendButton) {
+      sendButton.addEventListener('click', chatWindowCore.sendMessage);
+    } else {
+      console.error('Send button not found');
+    }
 
-  const messageInput = chatWindow.querySelector('#messageInput');
-  if (messageInput) {
-    messageInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        // console.log('Enter key pressed');  // Remove this line
-        e.preventDefault();
-        chatWindowCore.sendMessage();
-      }
-    });
-    // console.log('Message input found and listener added');  // Remove this line
-  } else {
-    console.error('Message input not found');
-  }
+    const messageInput = chatWindow.querySelector('#messageInput');
+    if (messageInput) {
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          chatWindowCore.sendMessage();
+        }
+      });
+    } else {
+      console.error('Message input not found');
+    }
 
-  // Add other necessary event listeners here
-  const hideButton = chatWindow.querySelector('#hideChat');
-  if (hideButton) {
-    hideButton.addEventListener('click', hideChatWindow);
-    // console.log('Hide button listener added');  // Remove this line
-  }
+    const hideButton = chatWindow.querySelector('#hideChat');
+    if (hideButton) {
+      hideButton.addEventListener('click', hideChatWindow);
+    }
 
-  const toggleSidebarButton = chatWindow.querySelector('#toggleSidebar');
-  if (toggleSidebarButton) {
-    toggleSidebarButton.addEventListener('click', toggleSidebarMode);
-    // console.log('Toggle sidebar button listener added');  // Remove this line
-  }
+    const toggleSidebarButton = chatWindow.querySelector('#toggleSidebar');
+    if (toggleSidebarButton) {
+      toggleSidebarButton.addEventListener('click', toggleSidebarMode);
+    }
 
-  const summarizeButton = chatWindow.querySelector('#summarizeContent');
-  if (summarizeButton) {
-    summarizeButton.addEventListener('click', chatWindowCore.summarizePageContent);
-  }
+    const summarizeButton = chatWindow.querySelector('#summarizeContent');
+    if (summarizeButton) {
+      summarizeButton.addEventListener('click', chatWindowCore.summarizePageContent);
+    }
 
-  const restartButton = chatWindow.querySelector('#restartChat');
-  if (restartButton) {
-    restartButton.addEventListener('click', () => {
-      chatWindowCore.restartChat();
-      // Optionally, you can add a visual feedback here, like:
-      // restartButton.classList.add('restarting');
-      // setTimeout(() => restartButton.classList.remove('restarting'), 500);
-    });
-  }
+    const restartButton = chatWindow.querySelector('#restartChat');
+    if (restartButton) {
+      restartButton.addEventListener('click', () => {
+        chatWindowCore.restartChat();
+      });
+    }
 
-  // Add theme change listener
-  window.matchMedia('(prefers-color-scheme: dark)').addListener(chatWindowCore.applyTheme);
+    // Add theme change listener
+    window.matchMedia('(prefers-color-scheme: dark)').addListener(chatWindowCore.applyTheme);
+  } catch (error) {
+    console.error('Error in addEventListeners:', error);
+    window.location.reload();
+  }
 }
 
 function toggleSidebarMode() {
@@ -191,6 +204,9 @@ function setSidebarMode() {
   chatWindow.style.right = '0';
   chatWindow.style.left = 'auto';
   chatWindow.style.bottom = 'auto';
+  chatWindow.style.display = 'flex';
+  chatWindow.style.opacity = '1';
+  chatWindow.style.visibility = 'visible';
   document.body.style.marginRight = `${initialSidebarWidth}px`;
   
   // Force a reflow to ensure the sidebar is rendered
@@ -211,13 +227,20 @@ function setPopupMode() {
 
 function hideChatWindow() {
   if (chatWindow) {
-    chatWindow.style.display = 'none';
-    isChatVisible = false;
-    saveTabSettings();
-    showChatToggle();
+    // First set opacity to 0 for smooth transition
+    chatWindow.style.opacity = '0';
+    chatWindow.style.visibility = 'hidden';
     
-    // Add this line to remove the margin when hiding the chat window
-    document.body.style.marginRight = '0';
+    // After transition, hide completely
+    setTimeout(() => {
+      chatWindow.style.display = 'none';
+      isChatVisible = false;
+      saveTabSettings();
+      document.body.style.marginRight = '0';
+      
+      // Show the toggle button after the chat window is hidden
+      showChatToggle();
+    }, 300); // Match the transition duration in CSS
   }
 }
 
@@ -227,23 +250,19 @@ function showChatWindow() {
   console.log('Showing chat window');
   if (!chatWindow) {
     createChatWindow();
-  } else {
-    // Reload chat history when showing an existing chat window
-    chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
-      const tabId = response.tabId;
-      chrome.runtime.sendMessage({action: 'getChatHistory', tabId: tabId}, function(history) {
-        if (history && history.length > 0) {
-          const chatMessages = chatWindow.querySelector('#chatMessages');
-          chatMessages.innerHTML = ''; // Clear existing messages
-          history.forEach(message => {
-            chatWindowCore.addMessage(message.role === 'user' ? 'User' : 'Assistant', message.content);
-          });
-        }
-      });
-    });
   }
-  
+
+  // Hide the toggle button immediately
+  const toggleButton = document.getElementById('showChatToggle');
+  if (toggleButton) {
+    toggleButton.remove(); // Remove it completely
+  }
+
+  // Show chat window
   chatWindow.style.display = 'flex';
+  chatWindow.style.visibility = 'visible';
+  chatWindow.style.opacity = '1';
+  
   isChatVisible = true;
   saveTabSettings();
 
@@ -253,66 +272,104 @@ function showChatWindow() {
     setPopupMode();
   }
 
-  // Hide the toggle button
-  const toggleButton = document.getElementById('showChatToggle');
-  if (toggleButton) {
-    toggleButton.style.display = 'none';
-  }
-}
-
-function saveTabSettings() {
+  // Reload chat history
   chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+    if (handleRuntimeError()) return;
     const tabId = response.tabId;
-    const settings = {
-      isSidebar: isSidebar,
-      isChatVisible: isChatVisible,
-      sidebarWidth: initialSidebarWidth
-    };
-    chrome.storage.local.set({[`tabSettings_${tabId}`]: settings});
+    chrome.runtime.sendMessage({action: 'getChatHistory', tabId: tabId}, function(history) {
+      if (handleRuntimeError()) return;
+      if (history && history.length > 0) {
+        const chatMessages = chatWindow.querySelector('#chatMessages');
+        chatMessages.innerHTML = ''; // Clear existing messages
+        history.forEach(message => {
+          chatWindowCore.addMessage(message.role === 'user' ? 'User' : 'Assistant', message.content);
+        });
+      }
+    });
   });
 }
 
+function saveTabSettings() {
+  try {
+    chrome.runtime.sendMessage({action: 'getTabId'}, function(response) {
+      if (handleRuntimeError()) return;
+      const tabId = response.tabId;
+      const settings = {
+        isSidebar: isSidebar,
+        isChatVisible: isChatVisible,
+        sidebarWidth: initialSidebarWidth
+      };
+      chrome.storage.local.set({[`tabSettings_${tabId}`]: settings});
+    });
+  } catch (error) {
+    console.error('Error in saveTabSettings:', error);
+    window.location.reload();
+  }
+}
+
 function updateChatWindowVisibility() {
-  if (isExtensionActive) {
-    if (isChatVisible) {
-      if (chatWindow) {
-        chatWindow.style.display = 'flex';
+  try {
+    if (isExtensionActive) {
+      if (isChatVisible) {
+        if (chatWindow) {
+          chatWindow.style.display = 'flex';
+          chatWindow.style.visibility = 'visible';
+          chatWindow.style.opacity = '1';
+        } else {
+          createChatWindow();
+        }
+        // Always remove the toggle button when chat is visible
+        const toggleButton = document.getElementById('showChatToggle');
+        if (toggleButton) {
+          toggleButton.remove();
+        }
+        // Set the correct mode after creating or showing the window
+        if (isSidebar) {
+          setSidebarMode();
+        } else {
+          setPopupMode();
+        }
       } else {
-        createChatWindow();
+        if (chatWindow) {
+          chatWindow.style.display = 'none';
+          chatWindow.style.visibility = 'hidden';
+          chatWindow.style.opacity = '0';
+        }
+        showChatToggle();
       }
-      const toggleButton = document.getElementById('showChatToggle');
-      if (toggleButton) {
-        toggleButton.style.display = 'none';
-      }
-      // Set the correct mode after creating or showing the window
-      if (isSidebar) {
-        setSidebarMode();
-      } else {
-        setPopupMode();
-      }
+      // Create prediction bar when extension is active
+      predictionBar.createPredictionBar();
     } else {
-      if (chatWindow) {
-        chatWindow.style.display = 'none';
-      }
-      showChatToggle();
+      removeChatWindow();
+      // Remove prediction bar when extension is inactive
+      predictionBar.removePredictionBar();
     }
-    // Create prediction bar when extension is active
-    predictionBar.createPredictionBar();
-  } else {
-    removeChatWindow();
-    // Remove prediction bar when extension is inactive
-    predictionBar.remove();
+  } catch (error) {
+    console.error('Error in updateChatWindowVisibility:', error);
+    window.location.reload();
   }
 }
 
 function initializeChatWindow() {
-  chrome.storage.local.get(['isChatVisible', 'isExtensionActive', 'isSidebar'], (result) => {
-    isChatVisible = result.isChatVisible !== false; // Default to true if not set
-    isExtensionActive = result.isExtensionActive !== false; // Default to true if not set
-    isSidebar = result.isSidebar !== false; // Default to true (sidebar mode) if not set
-    
-    updateChatWindowVisibility();
-  });
+  try {
+    chrome.storage.local.get(['isChatVisible', 'isExtensionActive', 'isSidebar'], (result) => {
+      if (handleRuntimeError()) return;
+      isExtensionActive = result.isExtensionActive !== false; // Default to true if not set
+      isSidebar = result.isSidebar !== false; // Default to true (sidebar mode) if not set
+      isChatVisible = result.isChatVisible === true; // Default to false if not set
+      
+      if (isExtensionActive) {
+        if (isChatVisible) {
+          showChatWindow();
+        } else {
+          showChatToggle();
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error in initializeChatWindow:', error);
+    window.location.reload();
+  }
 }
 
 function removeChatWindow() {
@@ -343,14 +400,12 @@ function showChatToggle() {
     `;
     toggleButton.addEventListener('click', showChatWindow);
     document.body.appendChild(toggleButton);
-    
-    // Position the toggle button on the right side of the window
-    toggleButton.style.position = 'fixed';
-    toggleButton.style.right = '0';
-    toggleButton.style.top = '50%';
-    toggleButton.style.transform = 'translateY(-50%)';
   }
-  toggleButton.style.display = 'block';
+  
+  // Make sure it's visible
+  toggleButton.style.display = 'flex';
+  toggleButton.style.visibility = 'visible';
+  toggleButton.style.opacity = '1';
 }
 
 export function handleToggleExtensionPower(isEnabled) {

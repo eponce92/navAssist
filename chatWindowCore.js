@@ -1,4 +1,5 @@
 import utils from './utils.js';
+import ttsService from './ttsService.js';
 
 let chatWindow = null;
 
@@ -6,49 +7,72 @@ export function setChatWindow(window) {
   chatWindow = window;
 }
 
-export function sendMessage() {
-  if (!chatWindow) {
-    console.error('Chat window not initialized');
-    return;
+function handleRuntimeError() {
+  if (chrome.runtime.lastError) {
+    console.error('Extension context invalidated, reloading page...');
+    window.location.reload();
+    return true;
   }
+  return false;
+}
 
-  const messageInput = chatWindow.querySelector('#messageInput');
-  const message = messageInput.value.trim();
-  if (message) {
-    console.log('Sending message:', message);
-    addMessage('User', message);
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-    
-    const assistantMessageElement = addMessage('Assistant', '');
-    const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
-    let accumulatedMarkdown = '';
-    
-    chrome.runtime.sendMessage({action: 'sendMessage', message: message}, function(response) {
-      if (chrome.runtime.lastError) {
-        console.error('Error sending message:', chrome.runtime.lastError);
+export function sendMessage() {
+  try {
+    if (!chatWindow) {
+      console.error('Chat window not initialized');
+      return;
+    }
+
+    const messageInput = chatWindow.querySelector('#messageInput');
+    const message = messageInput.value.trim();
+    if (message) {
+      console.log('Sending message:', message);
+      addMessage('User', message);
+      messageInput.value = '';
+      messageInput.style.height = 'auto';
+      
+      const assistantMessageElement = addMessage('Assistant', '');
+      const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
+      let accumulatedMarkdown = '';
+      
+      try {
+        chrome.runtime.sendMessage({action: 'sendMessage', message: message}, function(response) {
+          if (handleRuntimeError()) return;
+          console.log('Message sent successfully, waiting for response');
+        });
+
+        const responseHandler = function(message) {
+          try {
+            if (message.action === 'streamResponse') {
+              if (message.reply) {
+                accumulatedMarkdown += message.reply;
+                assistantMessageContent.innerHTML = utils.markdownToHtml(accumulatedMarkdown);
+                const chatMessages = chatWindow.querySelector('#chatMessages');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              }
+
+              if (message.done) {
+                addMessageButtons(assistantMessageElement, accumulatedMarkdown);
+                chrome.runtime.onMessage.removeListener(responseHandler);
+              }
+            }
+          } catch (error) {
+            console.error('Error in response handler:', error);
+            chrome.runtime.onMessage.removeListener(responseHandler);
+            window.location.reload();
+          }
+        };
+
+        chrome.runtime.onMessage.addListener(responseHandler);
+      } catch (error) {
+        console.error('Error sending message:', error);
         assistantMessageContent.innerHTML = 'Error: Unable to send message. Please try again.';
-        return;
+        window.location.reload();
       }
-
-      console.log('Message sent successfully, waiting for response');
-    });
-
-    chrome.runtime.onMessage.addListener(function responseHandler(message) {
-      if (message.action === 'streamResponse') {
-        if (message.reply) {
-          accumulatedMarkdown += message.reply;
-          assistantMessageContent.innerHTML = utils.markdownToHtml(accumulatedMarkdown);
-          const chatMessages = chatWindow.querySelector('#chatMessages');
-          chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        if (message.done) {
-          addCopyButton(assistantMessageElement, accumulatedMarkdown);
-          chrome.runtime.onMessage.removeListener(responseHandler);
-        }
-      }
-    });
+    }
+  } catch (error) {
+    console.error('Error in sendMessage:', error);
+    window.location.reload();
   }
 }
 
@@ -69,13 +93,83 @@ export function addMessage(sender, text) {
   messageElement.appendChild(messageContent);
   
   if (text) {
-    addCopyButton(messageElement, text);
+    if (sender === 'Assistant') {
+      addMessageButtons(messageElement, text);
+    } else {
+      addCopyButton(messageElement, text);
+    }
   }
   
   chatMessages.appendChild(messageElement);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
   return messageElement;
+}
+
+function addMessageButtons(messageElement, text) {
+  const buttonContainer = document.createElement('div');
+  buttonContainer.className = 'message-buttons';
+  buttonContainer.style.position = 'absolute';
+  buttonContainer.style.right = '8px';
+  buttonContainer.style.bottom = '8px';
+  buttonContainer.style.display = 'flex';
+  buttonContainer.style.gap = '8px';
+  
+  const copyButton = createCopyButton();
+  const copyFeedback = document.createElement('span');
+  copyFeedback.className = 'copy-feedback';
+  copyFeedback.textContent = 'Copied!';
+  
+  copyButton.addEventListener('click', () => {
+    navigator.clipboard.writeText(text).then(() => {
+      copyButton.classList.add('copied');
+      setTimeout(() => copyButton.classList.remove('copied'), 2000);
+    });
+  });
+
+  const ttsButton = createTTSButton();
+  const ttsFeedback = document.createElement('span');
+  ttsFeedback.className = 'tts-feedback';
+  ttsFeedback.textContent = 'Playing...';
+  
+  ttsButton.addEventListener('click', async () => {
+    try {
+      ttsButton.disabled = true;
+      ttsButton.classList.add('playing');
+      
+      // Get voice ID from storage
+      const voiceId = await new Promise((resolve) => {
+        chrome.storage.sync.get('selectedVoiceId', (data) => {
+          resolve(data.selectedVoiceId || '21m00Tcm4TlvDq8ikWAM'); // Default voice ID
+        });
+      });
+
+      try {
+        const audioSource = await ttsService.textToSpeech(text, voiceId);
+        
+        audioSource.onended = () => {
+          ttsButton.disabled = false;
+          ttsButton.classList.remove('playing');
+        };
+        
+      } catch (error) {
+        console.error('TTS error:', error);
+        alert('Error generating speech. Please check your API key and try again.');
+        ttsButton.disabled = false;
+        ttsButton.classList.remove('playing');
+      }
+    } catch (error) {
+      console.error('Error in TTS button click:', error);
+      ttsButton.disabled = false;
+      ttsButton.classList.remove('playing');
+    }
+  });
+  
+  buttonContainer.appendChild(copyButton);
+  buttonContainer.appendChild(copyFeedback);
+  buttonContainer.appendChild(ttsButton);
+  buttonContainer.appendChild(ttsFeedback);
+  messageElement.appendChild(buttonContainer);
 }
 
 function addCopyButton(messageElement, textToCopy) {
@@ -105,6 +199,20 @@ function createCopyButton() {
     </svg>
   `;
   button.title = 'Copy to clipboard';
+  return button;
+}
+
+function createTTSButton() {
+  const button = document.createElement('button');
+  button.className = 'tts-button';
+  button.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+    </svg>
+  `;
+  button.title = 'Read aloud';
   return button;
 }
 
@@ -155,45 +263,60 @@ function updateElementColors(theme) {
 }
 
 export function summarizePageContent() {
-  console.log('Summarizing page content');
-  const assistantMessageElement = addMessage('Assistant', 'Summarizing page content...');
-  const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
-  let accumulatedSummary = '';
-  
-  chrome.runtime.sendMessage({action: 'summarizeContent'}, function(response) {
-    if (chrome.runtime.lastError) {
-      console.error('Error summarizing content:', chrome.runtime.lastError);
-      assistantMessageContent.innerHTML = 'Error: Unable to summarize content. Please try again.';
-      return;
-    }
-  });
+  try {
+    console.log('Summarizing page content');
+    const assistantMessageElement = addMessage('Assistant', 'Summarizing page content...');
+    const assistantMessageContent = assistantMessageElement.querySelector('.message-content');
+    let accumulatedSummary = '';
+    
+    chrome.runtime.sendMessage({action: 'summarizeContent'}, function(response) {
+      if (handleRuntimeError()) return;
+    });
 
-  chrome.runtime.onMessage.addListener(function summaryHandler(message) {
-    if (message.action === 'streamResponse') {
-      if (message.reply) {
-        accumulatedSummary += message.reply;
-        assistantMessageContent.innerHTML = utils.markdownToHtml(accumulatedSummary);
-        const chatMessages = chatWindow.querySelector('#chatMessages');
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      }
+    const summaryHandler = function(message) {
+      try {
+        if (message.action === 'streamResponse') {
+          if (message.reply) {
+            accumulatedSummary += message.reply;
+            assistantMessageContent.innerHTML = utils.markdownToHtml(accumulatedSummary);
+            const chatMessages = chatWindow.querySelector('#chatMessages');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+          }
 
-      if (message.done) {
-        addCopyButton(assistantMessageElement, accumulatedSummary);
+          if (message.done) {
+            addMessageButtons(assistantMessageElement, accumulatedSummary);
+            chrome.runtime.onMessage.removeListener(summaryHandler);
+          }
+        }
+      } catch (error) {
+        console.error('Error in summary handler:', error);
         chrome.runtime.onMessage.removeListener(summaryHandler);
+        window.location.reload();
       }
-    }
-  });
+    };
+
+    chrome.runtime.onMessage.addListener(summaryHandler);
+  } catch (error) {
+    console.error('Error in summarizePageContent:', error);
+    window.location.reload();
+  }
 }
 
 export function restartChat() {
-  console.log('Restarting chat');
-  const chatMessages = chatWindow.querySelector('#chatMessages');
-  chatMessages.innerHTML = '';
-  chrome.runtime.sendMessage({action: 'clearChatHistory'}, response => {
-    if (!response.success) {
-      console.error('Failed to clear chat history');
-    }
-  });
+  try {
+    console.log('Restarting chat');
+    const chatMessages = chatWindow.querySelector('#chatMessages');
+    chatMessages.innerHTML = '';
+    chrome.runtime.sendMessage({action: 'clearChatHistory'}, response => {
+      if (handleRuntimeError()) return;
+      if (!response?.success) {
+        console.error('Failed to clear chat history');
+      }
+    });
+  } catch (error) {
+    console.error('Error in restartChat:', error);
+    window.location.reload();
+  }
 }
 
 export function updateSendButton() {
@@ -201,13 +324,75 @@ export function updateSendButton() {
   if (sendButton) {
     sendButton.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="19" x2="12" y2="5"></line>
-        <polyline points="5 12 12 5 19 12"></polyline>
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
       </svg>
     `;
     sendButton.style.display = 'flex';
     sendButton.style.alignItems = 'center';
     sendButton.style.justifyContent = 'center';
+  }
+}
+
+function initializeMessageInput() {
+  const messageInput = document.getElementById('messageInput');
+  
+  messageInput.addEventListener('input', function() {
+    // Reset height to auto to get the right scrollHeight
+    this.style.height = '40px';
+    
+    // Set height based on content
+    const newHeight = Math.min(this.scrollHeight, 150);
+    this.style.height = newHeight + 'px';
+    
+    // Toggle expanded state for scrollbar
+    this.setAttribute('data-expanded', newHeight >= 150 ? 'true' : 'false');
+  });
+}
+
+export function createChatWindow() {
+  // ... existing code ...
+  initializeMessageInput();
+  // ... rest of the function
+}
+
+async function handleTTSClick(button, text) {
+  try {
+    button.classList.add('playing');
+    button.querySelector('svg').innerHTML = `
+      <circle cx="12" cy="12" r="10" />
+      <rect x="9" y="9" width="2" height="6" />
+      <rect x="13" y="9" width="2" height="6" />
+    `;
+
+    // Get voice ID from storage
+    const voiceId = await new Promise((resolve) => {
+      chrome.storage.sync.get('selectedVoiceId', (data) => {
+        resolve(data.selectedVoiceId || '21m00Tcm4TlvDq8ikWAM'); // Default voice ID
+      });
+    });
+
+    const audioSource = await ttsService.textToSpeech(text, voiceId);
+    
+    // When audio finishes
+    audioSource.onended = () => {
+      button.classList.remove('playing');
+      button.querySelector('svg').innerHTML = `
+        <path d="M11 5L6 9H2v6h4l5 4V5z" />
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+      `;
+    };
+
+  } catch (error) {
+    console.error('Error playing TTS:', error);
+    button.classList.remove('playing');
+    button.querySelector('svg').innerHTML = `
+      <path d="M11 5L6 9H2v6h4l5 4V5z" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+    `;
+    throw error;
   }
 }
 

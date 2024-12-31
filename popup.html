@@ -5,18 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>navAssist</title>
   <style>
+    /* Update the root variables */
+    :root {
+      --primary-color: #3F51B5;
+      --background-color: #FFFFFF;
+      --text-color: #333333;
+      --border-color: #E0E0E0;
+      --shadow-color: rgba(0, 0, 0, 0.1);
+      --card-bg-color: #FFFFFF;
+      --input-bg-color: #FFFFFF;
+      --settings-group-bg: #f8f9fa;
+      --section-title-color: #4a4a4a;
+      --heading-color: #1a1a1a;
+    }
+
+    [data-theme="dark"] {
+      --primary-color: #3F51B5;
+      --background-color: #1E1E1E;
+      --text-color: #E0E0E0;
+      --border-color: #444444;
+      --shadow-color: rgba(0, 0, 0, 0.3);
+      --card-bg-color: #2C2C2C;
+      --input-bg-color: #333333;
+      --settings-group-bg: #252525;
+      --section-title-color: #B0B0B0;
+      --heading-color: #E0E0E0;
+    }
+
     body {
       font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
       width: 320px;
       margin: 0;
       padding: 20px;
-      background-color: #f0f2f5;
+      background-color: var(--background-color);
+      color: var(--text-color);
     }
     .card {
-      background-color: #ffffff;
+      background-color: var(--card-bg-color);
       border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px var(--shadow-color);
       overflow: hidden;
+      border: 1px solid var(--border-color);
     }
     .card-content {
       padding: 20px;
@@ -34,7 +63,7 @@
     h1 {
       font-size: 24px;
       font-weight: 600;
-      color: #1a1a1a;
+      color: var(--heading-color);
       margin: 0;
     }
     .section {
@@ -46,17 +75,19 @@
     .section-title {
       font-size: 16px;
       font-weight: 600;
-      color: #4a4a4a;
+      color: var(--section-title-color);
       margin-bottom: 8px;
     }
-    select, button, input[type="password"] {
+    select, button, input[type="text"] {
       width: 100%;
       padding: 10px;
-      border: 1px solid #e0e0e0;
+      border: 1px solid var(--border-color);
       border-radius: 6px;
       font-size: 14px;
-      background-color: #ffffff;
+      background-color: var(--input-bg-color);
+      color: var(--text-color);
       box-sizing: border-box;
+      margin-bottom: 15px;
     }
     button {
       background-color: #3F51B5;
@@ -69,16 +100,69 @@
     button:hover {
       background-color: #303F9F;
     }
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #ccc;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .status-indicator::after {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      border-radius: 50%;
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .status-indicator.status-connected {
+      background-color: #4CAF50;
+      box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
+    }
+    .status-indicator.status-connected::after {
+      box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+      opacity: 1;
+    }
+    .status-indicator.status-disconnected {
+      background-color: #f44336;
+      box-shadow: 0 0 15px rgba(244, 67, 54, 0.6);
+    }
+    .status-indicator.status-disconnected::after {
+      box-shadow: 0 0 20px rgba(244, 67, 54, 0.4);
+      opacity: 1;
+    }
+    .status-indicator:not(.status-connected):not(.status-disconnected) {
+      animation: pulse 1.5s infinite ease-in-out;
+    }
     .toggle-container {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 15px;
     }
+    /* Modern Toggle Switch */
     .switch {
       position: relative;
       display: inline-block;
-      width: 52px;
-      height: 28px;
+      width: 50px;
+      height: 26px;
     }
     .switch input {
       opacity: 0;
@@ -94,13 +178,13 @@
       bottom: 0;
       background-color: #ccc;
       transition: .4s;
-      border-radius: 28px;
+      border-radius: 34px;
     }
     .slider:before {
       position: absolute;
       content: "";
-      height: 20px;
-      width: 20px;
+      height: 18px;
+      width: 18px;
       left: 4px;
       bottom: 4px;
       background-color: white;
@@ -113,38 +197,20 @@
     input:checked + .slider:before {
       transform: translateX(24px);
     }
-    .connection-status {
-      display: flex;
-      align-items: center;
-      font-size: 14px;
+    input:focus + .slider {
+      box-shadow: 0 0 1px #3F51B5;
+    }
+    .settings-group {
+      background: var(--settings-group-bg);
+      border-radius: 8px;
+      padding: 15px;
       margin-bottom: 20px;
+      border: 1px solid var(--border-color);
     }
-    .status-indicator {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-right: 8px;
-    }
-    .status-connected {
-      background-color: #4CAF50;
-    }
-    .status-disconnected {
-      background-color: #F44336;
-    }
-
-    /* Add this new style for the API key input */
-    #openrouterApiKey {
-      font-size: 14px;
-      color: #333;
-    }
-
-    /* Add these new styles */
-    #ollamaSection, #openrouterSection {
-      margin-bottom: 20px;
-    }
-
-    #modelSelect, #openrouterApiKey {
-      margin-bottom: 20px;
+    .settings-group h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: var(--heading-color);
     }
   </style>
 </head>
@@ -161,31 +227,65 @@
         <span id="connectionStatus">Checking connection...</span>
       </div>
 
-      <div class="section">
-        <div class="section-title">Provider</div>
-        <select id="providerSelect">
-          <option value="ollama">Ollama</option>
-          <option value="openrouter">OpenRouter</option>
-        </select>
+      <div class="settings-group">
+        <h3>LLM Settings</h3>
+        <div class="section">
+          <div class="section-title">Provider</div>
+          <select id="providerSelect">
+            <option value="ollama">Ollama</option>
+            <option value="openrouter">OpenRouter</option>
+          </select>
+        </div>
+
+        <div id="ollamaSection">
+          <div class="section">
+            <div class="section-title">Model</div>
+            <select id="ollamaModelSelect">
+              <option value="">Loading Ollama models...</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="openrouterSection" style="display: none;">
+          <div class="section">
+            <div class="section-title">Model</div>
+            <select id="openrouterModelSelect">
+              <option value="">Loading OpenRouter models...</option>
+            </select>
+          </div>
+          <div class="section">
+            <label for="openrouterApiKey">OpenRouter API Key:</label>
+            <input type="text" id="openrouterApiKey" placeholder="Enter your API key">
+          </div>
+        </div>
       </div>
 
-      <div id="ollamaSection">
+      <div class="settings-group">
+        <h3>TTS Settings</h3>
+        <div class="connection-status">
+          <div id="ttsStatusIndicator" class="status-indicator"></div>
+          <span id="ttsConnectionStatus">Enter API key</span>
+        </div>
+        <div class="section">
+          <label for="elevenLabsApiKey">ElevenLabs API Key:</label>
+          <input type="text" id="elevenLabsApiKey" placeholder="Enter your API key">
+        </div>
         <div class="section">
           <div class="section-title">Model</div>
-          <select id="modelSelect">
-            <option value="">Loading models...</option>
+          <select id="ttsModelSelect">
+            <option value="">Loading TTS models...</option>
+          </select>
+        </div>
+        <div class="section">
+          <label for="voiceSelect">Voice:</label>
+          <select id="voiceSelect">
+            <option value="">Loading voices...</option>
           </select>
         </div>
       </div>
 
-      <div id="openrouterSection" style="display: none;">
-        <div class="section">
-          <div class="section-title">API Key</div>
-          <input type="password" id="openrouterApiKey" placeholder="Enter your API key">
-        </div>
-      </div>
-
-      <div class="section">
+      <div class="settings-group">
+        <h3>General Settings</h3>
         <div class="toggle-container">
           <span class="section-title">Enable Prediction Bar</span>
           <label class="switch">
@@ -193,9 +293,6 @@
             <span class="slider"></span>
           </label>
         </div>
-      </div>
-
-      <div class="section">
         <div class="toggle-container">
           <span class="section-title">Enable navAssist</span>
           <label class="switch">
@@ -203,9 +300,6 @@
             <span class="slider"></span>
           </label>
         </div>
-      </div>
-
-      <div class="section">
         <div class="toggle-container">
           <span class="section-title">Dark Theme</span>
           <label class="switch">
@@ -217,7 +311,6 @@
 
       <div id="downloadSection" class="section" style="display: none;">
         <div class="section-title">Download Suggested Models</div>
-        <!-- Download buttons will be dynamically added here -->
       </div>
 
       <div class="section">

@@ -43,6 +43,7 @@
         "chatWindowVisibility.js",
         "floatingBar.js",
         "predictionBar.js",
+        "ttsService.js",
         "icon.png"
       ],
       "matches": ["<all_urls>"]
