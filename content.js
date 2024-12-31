@@ -70,6 +70,7 @@
   let lastSelection = null;
   let isCtrlASelection = false;
   let showFloatingBarTimeout = null;
+  let isHandlingSelection = false;
 
   async function initializeExtension() {
     console.log('Initializing extension');
@@ -98,8 +99,17 @@
     chrome.storage.local.get('isPredictionBarEnabled', function(data) {
       const isEnabled = data.isPredictionBarEnabled === true; // Must be explicitly true
       if (isEnabled) {
-        modules.predictionBar.default.createPredictionBar();
-        modules.predictionBar.default.addPredictionListeners();
+        // Add check for active element before creating prediction bar
+        const activeElement = document.activeElement;
+        const isAiEditInput = activeElement.id === 'aiEditInput';
+        const isChatInterface = activeElement.id === 'messageInput' || 
+                               activeElement.closest('#chatWindow') !== null;
+        
+        // Only create prediction bar if we're not in AI edit or chat
+        if (!isAiEditInput && !isChatInterface) {
+          modules.predictionBar.default.createPredictionBar();
+          modules.predictionBar.default.addPredictionListeners();
+        }
       } else {
         modules.predictionBar.default.removePredictionBar();
         modules.predictionBar.default.removePredictionListeners();
@@ -126,7 +136,9 @@
 
   function handleMouseUp(e) {
     if (!modules.chatWindowVisibility.default.isExtensionActive) return;
+    if (isHandlingSelection) return;
 
+    isHandlingSelection = true;
     console.log('mouseup event triggered');
 
     const selection = window.getSelection();
@@ -135,38 +147,66 @@
     console.log('Selected text:', selectedText);
     console.log('isFloatingBarVisible:', modules.floatingBar.default.isFloatingBarActuallyVisible());
 
-    if (selectedText) {
+    // Only show floating bar if we have text selected and it's not already visible
+    if (selectedText && !modules.floatingBar.default.isFloatingBarActuallyVisible()) {
       console.log('Showing floating bar');
       lastSelection = selection.getRangeAt(0).cloneRange();
       const rect = lastSelection.getBoundingClientRect();
       modules.floatingBar.default.showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
       modules.floatingBar.default.updateSelection(selectedText, lastSelection);
-    } else if (!selectedText && modules.floatingBar.default.isFloatingBarActuallyVisible() && !isCtrlASelection) {
-      console.log('Hiding floating bar');
-      modules.floatingBar.default.hideFloatingBar();
     } else {
       console.log('No action taken: selectedText:', !!selectedText, 'isFloatingBarVisible:', modules.floatingBar.default.isFloatingBarActuallyVisible());
     }
 
     isCtrlASelection = false;
     modules.predictionBar.default.hidePredictionBar();
+    
+    // Reset the handling flag after a short delay
+    setTimeout(() => {
+      isHandlingSelection = false;
+    }, 100);
   }
 
   function handleMouseDown(e) {
+    // If clicking outside the floating bar and it's visible, hide it
     if (modules.floatingBar.default.isFloatingBarActuallyVisible() && 
         !modules.floatingBar.default.isFloatingBarContainingTarget(e.target) && 
         e.target.id !== 'navAssistFloatingBarTooltip' &&
         !modules.floatingBar.default.isEditingAI()) {
       console.log('Mousedown outside floating bar, hiding it');
       modules.floatingBar.default.hideFloatingBar(true);
+      selectedText = ''; // Clear the selected text
+      lastSelection = null; // Clear the last selection
+      // Clear the selection
+      const selection = window.getSelection();
+      selection.removeAllRanges();
     }
   }
 
   function handleSelectionChange() {
     if (!modules.chatWindowVisibility.default.isExtensionActive) return;
+    if (isHandlingSelection) return;
 
     const selection = window.getSelection();
-    if (selection.toString().trim() === '') {
+    const text = selection.toString().trim();
+    
+    // Get the active element to check where we're typing
+    const activeElement = document.activeElement;
+    
+    // Check if we're in the AI edit input or chat interface
+    const isAiEditInput = activeElement.id === 'aiEditInput';
+    const isChatInterface = activeElement.id === 'messageInput' || 
+                           activeElement.closest('#chatWindow') !== null;
+    
+    // Don't show predictions if we're in AI edit input or chat interface
+    if (isAiEditInput || isChatInterface) {
+      modules.predictionBar.default.hidePredictionBar();
+      return;
+    }
+    
+    if (text === '') {
+      selectedText = '';
+      lastSelection = null;
       modules.floatingBar.default.hideFloatingBar();
     }
   }

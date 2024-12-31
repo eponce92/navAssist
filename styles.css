@@ -140,7 +140,9 @@
   box-shadow: -2px 0 8px var(--shadow-color);
   opacity: 1;
   visibility: visible;
-  transition: background-color 0.3s ease, width 0.3s ease;
+  transition: background-color 0.3s ease, 
+              width 0.3s ease,
+              opacity 0.3s ease;
   touch-action: none;
   user-select: none;
 }
@@ -181,7 +183,13 @@
   box-shadow: -2px 0 10px var(--shadow-color);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease, width 0.3s ease, height 0.3s ease;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #chatWindow.sidebar-mode {
@@ -494,17 +502,27 @@ body {
 }
 
 #navAssistFloatingBar {
-  position: fixed;
-  display: none;
+  position: absolute;
+  display: flex;
   gap: 8px;
   padding: 8px;
   background-color: var(--background-color);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   box-shadow: 0 4px 12px var(--shadow-color);
-  opacity: 0;
-  transition: opacity 0.2s ease;
   z-index: 2147483647;
+  transform-origin: center top;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#navAssistFloatingBar.show {
+  animation: bounceIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#navAssistFloatingBar.hide {
+  animation: fadeScale 0.2s cubic-bezier(0.4, 0, 0.2, 1) reverse;
 }
 
 #navAssistFloatingBar button {
@@ -516,36 +534,40 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   width: 40px;
   height: 40px;
 }
 
 #navAssistFloatingBar button:hover {
+  transform: translateY(-2px);
   background-color: var(--primary-color);
   border-color: var(--primary-color);
-  transform: translateY(-1px);
-}
-
-#navAssistFloatingBar button svg {
-  width: 20px;
-  height: 20px;
-  color: var(--text-color);
-  transition: all 0.2s ease;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 #navAssistFloatingBar button:hover svg {
   color: white;
 }
 
+#navAssistFloatingBar button:active {
+  transform: translateY(0);
+}
+
+#navAssistFloatingBar button svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-color);
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 #aiEditInputContainer {
   display: none;
   margin-left: 8px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #aiEditInput {
@@ -556,27 +578,14 @@ body {
   background-color: var(--input-bg-color);
   color: var(--text-color);
   min-width: 200px;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #aiEditInput:focus {
   outline: none;
   border-color: var(--primary-color);
-}
-
-#navAssistFloatingBarTooltip {
-  position: fixed;
-  background-color: var(--background-color);
-  color: var(--text-color);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  box-shadow: 0 2px 8px var(--shadow-color);
-  border: 1px solid var(--border-color);
-  z-index: 2147483647;
+  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
 }
 
 /* Dark theme adjustments */
@@ -643,4 +652,367 @@ body {
 
 #chatWindow.popup-mode:hover #resizeHandle {
   opacity: 1;
+}
+
+/* Animation Keyframes */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%) scale(0.3);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes popOut {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Chat Window Base Styles */
+#chatWindow {
+  transform-origin: right var(--transform-origin-y, center);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#chatWindow.popup-mode {
+  transform-origin: right var(--transform-origin-y, top);
+}
+
+#chatWindow.sidebar-mode.showing {
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+#chatWindow.sidebar-mode.hiding {
+  animation: slideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+#chatWindow.popup-mode.showing {
+  animation: popIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+#chatWindow.popup-mode.hiding {
+  animation: popOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+#chatWindow.dragging {
+  transition: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Floating Bar Animations */
+#navAssistFloatingBar {
+  transform-origin: center top;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#navAssistFloatingBar.show {
+  animation: bounceIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#navAssistFloatingBar.hide {
+  animation: fadeScale 0.2s cubic-bezier(0.4, 0, 0.2, 1) reverse;
+}
+
+#navAssistFloatingBar button {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#navAssistFloatingBar button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+#navAssistFloatingBar button:active {
+  transform: translateY(0);
+}
+
+/* Message Animations */
+.message {
+  animation: fadeScale 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.message-buttons {
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(5px);
+}
+
+.message:hover .message-buttons {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Toggle Button Animations */
+#showChatToggle {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#showChatToggle:hover {
+  transform: translateY(-50%) translateX(-2px);
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.2);
+}
+
+#showChatToggle.dragging {
+  transition: none;
+  box-shadow: -6px 0 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Prediction Bar Animations */
+#navAssistPredictionBar {
+  transform-origin: top left;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#navAssistPredictionBar.show {
+  animation: fadeScale 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#navAssistPredictionBar.hide {
+  animation: fadeScale 0.2s cubic-bezier(0.4, 0, 0.2, 1) reverse;
+}
+
+/* Copy and TTS Button Animations */
+.copy-button,
+.tts-button {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.copy-button:hover,
+.tts-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.copy-button:active,
+.tts-button:active {
+  transform: translateY(0);
+}
+
+.copy-button.copied,
+.tts-button.playing {
+  animation: bounceIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* AI Edit Input Animation */
+#aiEditInputContainer {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#aiEditInput {
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Chat Window Show/Hide Animations */
+#chatWindow.showing {
+  animation: fadeScale 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#chatWindow.hiding {
+  animation: fadeScale 0.3s cubic-bezier(0.4, 0, 0.2, 1) reverse;
+}
+
+#chatWindow.transitioning {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#chatWindow.sidebar-mode.showing {
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#chatWindow.sidebar-mode.hiding {
+  animation: slideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Message Staggered Animation */
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message {
+  animation: messageIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+/* Add staggered delay for messages */
+.message:nth-child(1) { animation-delay: 0s; }
+.message:nth-child(2) { animation-delay: 0.1s; }
+.message:nth-child(3) { animation-delay: 0.2s; }
+.message:nth-child(4) { animation-delay: 0.3s; }
+.message:nth-child(5) { animation-delay: 0.4s; }
+.message:nth-child(n+6) { animation-delay: 0.5s; }
+
+/* Improved Button Hover States */
+.chat-controls button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-controls button:hover {
+  transform: translateY(-1px);
+  background-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chat-controls button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Send Button Animation */
+#sendMessage {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#sendMessage:hover {
+  transform: scale(1.05) rotate(45deg);
+}
+
+#sendMessage:active {
+  transform: scale(0.95) rotate(45deg);
+}
+
+/* Message Input Animation */
+#messageInput {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#messageInput:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Resize Handle Animation */
+#resizeHandle::after {
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#chatWindow.popup-mode:hover #resizeHandle::after {
+  opacity: 0.8;
+}
+
+/* Loading Animation */
+@keyframes loadingDots {
+  0%, 20% {
+    content: ".";
+  }
+  40%, 60% {
+    content: "..";
+  }
+  80%, 100% {
+    content: "...";
+  }
+}
+
+.loading-indicator::after {
+  content: "";
+  animation: loadingDots 1.5s infinite;
+}
+
+/* Tooltip Animation */
+#navAssistFloatingBarTooltip {
+  animation: fadeScale 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prediction Text Animation */
+@keyframes typeIn {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 100%;
+    opacity: 1;
+  }
+}
+
+#navAssistPredictionBar span {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  animation: typeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }

@@ -275,21 +275,51 @@ function getCursorPosition(element) {
 }
 
 function addPredictionListeners() {
-  document.addEventListener('focusin', addInputListeners);
-  document.addEventListener('focusout', removeInputListeners);
+  document.addEventListener('keydown', (e) => {
+    // Get the active element
+    const activeElement = document.activeElement;
+    
+    // Check if we're in AI edit input or chat interface
+    const isAiEditInput = activeElement.id === 'aiEditInput';
+    const isChatInterface = activeElement.id === 'messageInput' || 
+                           activeElement.closest('#chatWindow') !== null;
+    
+    // Don't process predictions if we're in these interfaces
+    if (isAiEditInput || isChatInterface) {
+      hidePredictionBar();
+      return;
+    }
+
+    // Only process if we're in an editable area
+    if (!isEditableArea(activeElement)) {
+      return;
+    }
+
+    // Rest of the existing prediction logic...
+    handlePredictionKeydown(e);
+  });
 }
 
-function handleKeyDown(e) {
-  if (!isExtensionActive) return;
+function isEditableArea(element) {
+  return element.isContentEditable || 
+         element.tagName === 'TEXTAREA' || 
+         element.tagName === 'INPUT' ||
+         (element.tagName === 'DIV' && element.getAttribute('role') === 'textbox') ||
+         element.classList.contains('editable');
+}
 
-  if (e.key === 'Tab' && e.shiftKey && currentPrediction) {
-    e.preventDefault();
-    insertPrediction(e.target);
-  } else if (e.key === 'Escape') {
-    hidePredictionBar();
-  } else {
-    hidePredictionBar();
+function handlePredictionKeydown(e) {
+  // Get the active element again to ensure we're still in an editable area
+  const activeElement = document.activeElement;
+  
+  // Double check we're not in AI edit or chat
+  if (activeElement.id === 'aiEditInput' || 
+      activeElement.id === 'messageInput' || 
+      activeElement.closest('#chatWindow')) {
+    return;
   }
+
+  // Rest of your existing keydown handling code...
 }
 
 function removePredictionBar() {

@@ -6,19 +6,85 @@ let selectedText = '';
 let lastSelection = null;
 let isFloatingBarVisible = false;
 let isCtrlASelection = false;
+let isProcessingSelection = false;
+let lastMouseDownTarget = null;
+let hideTimeout = null;
+let showTimeout = null;
+let isHiding = false;
 
 // Initialize selection change listener
 document.addEventListener('selectionchange', handleSelectionChange);
+document.addEventListener('mousedown', handleMouseDown);
+
+function handleMouseDown(e) {
+  lastMouseDownTarget = e.target;
+  
+  // Clear any pending show/hide operations
+  clearTimeout(hideTimeout);
+  clearTimeout(showTimeout);
+  
+  // If clicking outside the floating bar, hide it immediately
+  if (floatingBar && !floatingBar.contains(e.target)) {
+    isHiding = true;
+    hideFloatingBar(true);
+    selectedText = '';
+    lastSelection = null;
+  }
+}
+
+function handleMouseUp(e) {
+  if (!chatWindowVisibility.default.isExtensionActive || isHiding) return;
+  if (isProcessingSelection) return;
+
+  isProcessingSelection = true;
+  console.log('mouseup event triggered');
+
+  const selection = window.getSelection();
+  const newSelectedText = selection.toString().trim();
+  
+  // Clear any pending show/hide operations
+  clearTimeout(hideTimeout);
+  clearTimeout(showTimeout);
+  
+  // If there's no text selected or clicking outside the selection
+  if (!newSelectedText || selection.isCollapsed) {
+    console.log('No valid selection, clearing state');
+    selectedText = '';
+    lastSelection = null;
+    hideFloatingBar(true);
+    isProcessingSelection = false;
+    return;
+  }
+
+  // Only show floating bar if we have a new selection and we're not currently hiding
+  if (!isHiding && (newSelectedText !== selectedText || !isFloatingBarActuallyVisible())) {
+    selectedText = newSelectedText;
+    console.log('New selection found, showing floating bar');
+    lastSelection = selection.getRangeAt(0).cloneRange();
+    const rect = lastSelection.getBoundingClientRect();
+    showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
+  }
+
+  // Reset processing flag after a short delay
+  setTimeout(() => {
+    isProcessingSelection = false;
+    isHiding = false;
+  }, 100);
+}
 
 function handleSelectionChange() {
+  if (!chatWindowVisibility.default.isExtensionActive) return;
+  if (isProcessingSelection) return;
+
   const selection = window.getSelection();
   const text = selection.toString().trim();
   
   // If there's no text selected or the selection is collapsed
   if (!text || selection.isCollapsed) {
-    // Only hide if we're not currently editing and not in Gmail compose
-    const isGmailCompose = document.querySelector('.Am.Al.editable');
-    if (!isEditingAI() && !isMouseOverFloatingBar() && !isGmailCompose) {
+    // Don't immediately hide if we're interacting with the floating bar
+    if (!isMouseOverFloatingBar() && (!lastMouseDownTarget || !floatingBar?.contains(lastMouseDownTarget))) {
+      selectedText = '';
+      lastSelection = null;
       hideFloatingBar(true);
     }
     return;
@@ -33,17 +99,16 @@ function handleSelectionChange() {
   
   const isEditableArea = activeElement.isContentEditable || 
                         activeElement.tagName === 'TEXTAREA' || 
+                        activeElement.tagName === 'INPUT' ||
                         (activeElement.tagName === 'DIV' && activeElement.getAttribute('role') === 'textbox') ||
                         isGmailCompose;
 
   if (!isEditableArea) return;
 
-  // Update the selection if there is text selected
-  if (selection.rangeCount > 0) {
-    updateSelection(text, selection.getRangeAt(0));
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
+  // Only update selection state, don't show/hide floating bar
+  if (selection.rangeCount > 0 && text !== selectedText) {
+    selectedText = text;
+    lastSelection = selection.getRangeAt(0).cloneRange();
   }
 }
 
@@ -51,6 +116,18 @@ function createFloatingBar() {
   console.log('Creating floating bar');
   floatingBar = document.createElement('div');
   floatingBar.id = 'navAssistFloatingBar';
+  floatingBar.style.cssText = `
+    position: absolute;
+    display: none;
+    padding: 8px;
+    border-radius: 12px;
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    z-index: 2147483647;
+    opacity: 0;
+  `;
+  
   floatingBar.innerHTML = `
     <button id="transferToChat" title="Transfer to Chat">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -90,21 +167,25 @@ function createFloatingBar() {
   const aiEditButton = floatingBar.querySelector('#aiEdit');
   aiEditButton.addEventListener('click', toggleAiEditInput);
 
-  // Add event listeners for AI edit input
-  const aiEditInput = floatingBar.querySelector('#aiEditInput');
-  aiEditInput.addEventListener('keydown', handleAiEditInputKeydown);
-  aiEditInput.addEventListener('blur', handleAiEditInputBlur);
-
   addTooltipListeners(transferButton, 'Transfer to Chat');
   addTooltipListeners(fixGrammarButton, 'Fix Grammar');
   addTooltipListeners(aiEditButton, 'AI Edit');
 
-  // Add document click listener to hide tooltips and handle clicks outside
+  // Update document click listener
   document.addEventListener('mousedown', (e) => {
     if (!floatingBar.contains(e.target)) {
       hideTooltip();
-      // Only hide floating bar if we're not editing
-      if (!isEditingAI()) {
+      // Reset AI edit input state and hide floating bar
+      const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
+      const aiEditInput = floatingBar.querySelector('#aiEditInput');
+      if (aiEditInputContainer) {
+        aiEditInputContainer.style.display = 'none';
+      }
+      if (aiEditInput) {
+        aiEditInput.value = '';
+      }
+      // Only hide floating bar if we're not over it
+      if (!isMouseOverFloatingBar()) {
         hideFloatingBar(true);
       }
     }
@@ -159,13 +240,18 @@ function hideTooltip() {
 function showFloatingBar(x, y, isCtrlA = false) {
   console.log('showFloatingBar called with coordinates:', x, y, 'isCtrlA:', isCtrlA);
   
-  // Hide any existing tooltips when showing the floating bar
-  hideTooltip();
-  
   if (!floatingBar) {
-    console.log('Creating floating bar');
     createFloatingBar();
   }
+
+  // If already visible, don't show again
+  if (isFloatingBarActuallyVisible()) {
+    console.log('Floating bar already visible, skipping show');
+    return;
+  }
+
+  // Remove any existing animation classes
+  floatingBar.classList.remove('show', 'hide');
   
   // Get the selection range and its bounding rect
   const selection = window.getSelection();
@@ -180,34 +266,23 @@ function showFloatingBar(x, y, isCtrlA = false) {
   const barWidth = floatingBar.offsetWidth;
   const barHeight = floatingBar.offsetHeight;
   
-  // Default vertical offset (much larger to ensure visibility)
-  const verticalOffset = 60;
+  // Increased vertical offset to position bar much higher above the text
+  const verticalOffset = 80;
   
-  // Try to position above first
+  // Try to position above first, with increased distance
   let top = rect.top - barHeight - verticalOffset;
   let positionBelow = false;
   
-  // If there's not enough space above, try below
+  // If there's not enough space above, try below with increased distance
   if (top < 10) {
     top = rect.bottom + verticalOffset;
     positionBelow = true;
   }
   
-  // If neither above nor below has enough space, choose the side with more space
-  if (top < 10 || top + barHeight > viewportHeight - 10) {
-    const spaceAbove = rect.top;
-    const spaceBelow = viewportHeight - rect.bottom;
-    if (spaceAbove > spaceBelow) {
-      top = Math.max(10, rect.top - barHeight - verticalOffset);
-    } else {
-      top = Math.min(viewportHeight - barHeight - 10, rect.bottom + verticalOffset);
-    }
-  }
-  
   // Calculate horizontal position (centered on selection)
   let left = rect.left + (rect.width / 2) - (barWidth / 2);
   
-  // Keep within horizontal bounds
+  // Keep within horizontal bounds with some padding
   left = Math.max(10, Math.min(viewportWidth - barWidth - 10, left));
   
   // Apply the calculated position, considering scroll position
@@ -217,54 +292,65 @@ function showFloatingBar(x, y, isCtrlA = false) {
   floatingBar.style.left = `${left + scrollX}px`;
   floatingBar.style.top = `${top + scrollY}px`;
   floatingBar.style.display = 'flex';
-  floatingBar.style.position = 'absolute';
-  floatingBar.style.zIndex = '2147483647';
-  
-  // Add a transition for smooth positioning
-  floatingBar.style.transition = 'opacity 0.2s ease';
   floatingBar.style.opacity = '0';
   
-  // Force a reflow before setting opacity to 1
+  // Force a reflow
   floatingBar.offsetHeight;
+  
+  // Add show animation class
+  floatingBar.classList.add('show');
   floatingBar.style.opacity = '1';
 
   isFloatingBarVisible = true;
   isCtrlASelection = isCtrlA;
   console.log('Floating bar should now be visible at position:', { left, top, positionBelow });
-
-  const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
-  if (aiEditInputContainer.style.display !== 'none') {
-    floatingBar.style.width = 'auto'; // Allow the bar to expand
-  } else {
-    floatingBar.style.width = ''; // Reset to default width
-  }
 }
 
 function hideFloatingBar(force = false) {
+  // Clear any pending show/hide operations
+  clearTimeout(hideTimeout);
+  clearTimeout(showTimeout);
+  
   if (floatingBar && isFloatingBarVisible) {
     console.log('Attempting to hide floating bar. Force:', force);
     if (force) {
       console.log('Hiding floating bar');
-      // Always hide tooltip first
       hideTooltip();
+      isHiding = true;
       
-      // Hide the floating bar with transition
+      // Remove show class and add hide class
+      floatingBar.classList.remove('show');
+      floatingBar.classList.add('hide');
       floatingBar.style.opacity = '0';
-      setTimeout(() => {
-        floatingBar.style.display = 'none';
-        isFloatingBarVisible = false;
-        isCtrlASelection = false;
-        
-        // Hide and clear the AI edit input
-        const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
-        const aiEditInput = floatingBar.querySelector('#aiEditInput');
-        if (aiEditInputContainer) {
-          aiEditInputContainer.style.display = 'none';
+      
+      // Wait for animation to complete
+      hideTimeout = setTimeout(() => {
+        if (floatingBar) {
+          floatingBar.style.display = 'none';
+          floatingBar.classList.remove('hide');
+          isFloatingBarVisible = false;
+          isCtrlASelection = false;
+          
+          // Hide and clear the AI edit input
+          const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
+          const aiEditInput = floatingBar.querySelector('#aiEditInput');
+          if (aiEditInputContainer) {
+            aiEditInputContainer.style.display = 'none';
+          }
+          if (aiEditInput) {
+            aiEditInput.value = '';
+          }
+          
+          // Clear the selection
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          
+          // Reset hiding state after animation completes
+          setTimeout(() => {
+            isHiding = false;
+          }, 50);
         }
-        if (aiEditInput) {
-          aiEditInput.value = '';
-        }
-      }, 200); // Match the transition duration
+      }, 200);
       
       console.log('Floating bar hidden');
     } else {
@@ -395,29 +481,45 @@ function toggleAiEditInput(event) {
       floatingBar.style.left = `${newLeft}px`;
     }
     
-    // Delay focus to ensure Gmail doesn't interfere
-    setTimeout(() => {
-      aiEditInput.focus();
-      // Prevent Gmail from capturing the focus
-      aiEditInput.addEventListener('blur', (e) => {
-        if (isEditingAI()) {
-          e.preventDefault();
-          e.stopPropagation();
-          aiEditInput.focus();
-        }
-      }, { once: true });
-    }, 50);
+    // Remove any existing event listeners
+    const newInput = aiEditInput.cloneNode(true);
+    aiEditInput.parentNode.replaceChild(newInput, aiEditInput);
     
-    // Add click event listener to prevent hiding when clicking inside the input
-    aiEditInput.addEventListener('click', (e) => {
+    // Add all event listeners to the new input
+    newInput.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const userInstructions = e.target.value.trim();
+        console.log('AI Edit instructions:', userInstructions);
+        
+        if (userInstructions) {
+          // Get the current selection or use the last saved selection
+          if (!selectedText && lastSelection) {
+            const range = lastSelection.cloneRange();
+            const tempDiv = document.createElement('div');
+            tempDiv.appendChild(range.cloneContents());
+            selectedText = tempDiv.innerText;
+          }
+          
+          if (selectedText) {
+            performAiEdit(userInstructions);
+          } else {
+            console.error('No text selected for AI Edit');
+          }
+        }
+      }
+    });
+    
+    newInput.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
     });
     
-    // Prevent Gmail from handling keydown events
-    aiEditInput.addEventListener('keydown', (e) => {
-      e.stopPropagation();
-    }, true);
+    // Focus the input after a short delay
+    setTimeout(() => {
+      newInput.focus();
+    }, 50);
   } else {
     aiEditInputContainer.style.display = 'none';
     floatingBar.style.width = '';
@@ -425,23 +527,35 @@ function toggleAiEditInput(event) {
 }
 
 function handleAiEditInputKeydown(event) {
+  // Stop propagation to prevent Gmail from handling the event
+  event.stopPropagation();
+  
   if (event.key === 'Enter') {
     event.preventDefault();
     const userInstructions = event.target.value.trim();
+    console.log('AI Edit instructions:', userInstructions);
+    
     if (userInstructions) {
-      performAiEdit(userInstructions);
-      hideFloatingBar(true);  // Force hide the floating bar
+      // Get the current selection or use the last saved selection
+      if (!selectedText && lastSelection) {
+        const range = lastSelection.cloneRange();
+        const tempDiv = document.createElement('div');
+        tempDiv.appendChild(range.cloneContents());
+        selectedText = tempDiv.innerText;
+      }
+      
+      if (selectedText) {
+        performAiEdit(userInstructions);
+      } else {
+        console.error('No text selected for AI Edit');
+      }
     }
   }
 }
 
 function performAiEdit(userInstructions) {
-  if (!selectedText && lastSelection) {
-    const range = lastSelection.cloneRange();
-    const tempDiv = document.createElement('div');
-    tempDiv.appendChild(range.cloneContents());
-    selectedText = tempDiv.innerText;
-  }
+  console.log('Performing AI Edit with instructions:', userInstructions);
+  console.log('Selected text:', selectedText);
   
   if (selectedText) {
     const prompt = `Modify the following text following the users directions and instructions. No conversations, opinions or extra text on your reply, Only the modified text and nothing else:
@@ -451,6 +565,7 @@ User instructions: "${userInstructions}"
 ${selectedText}`;
     
     utils.showLoadingIndicator('Working on your text...');
+    hideFloatingBar(true);
     
     chrome.runtime.sendMessage({action: 'aiEdit', prompt: prompt}, (response) => {
       utils.hideLoadingIndicator();
@@ -463,11 +578,11 @@ ${selectedText}`;
           console.error('No valid selection range found');
         }
       } else {
-        console.error('Failed to edit text');
+        console.error('Failed to edit text:', response?.error || 'Unknown error');
       }
     });
   } else {
-    console.error('No valid selection found');
+    console.error('No valid selection found for AI Edit');
   }
 }
 
