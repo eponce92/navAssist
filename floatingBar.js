@@ -619,6 +619,69 @@ function replaceSelectedText(newText) {
   }
 }
 
+function transferTextToChat(text) {
+  if (!text) return;
+
+  const chatInput = document.getElementById('chatInput');
+  const textarea = chatInput?.querySelector('textarea');
+  
+  // If textarea exists and is visible, add text directly
+  if (textarea && chatInput.offsetParent !== null) {
+    // Get current cursor position and text
+    const currentValue = textarea.value;
+    const cursorPos = textarea.selectionStart;
+    
+    // Insert text at cursor position
+    const beforeCursor = currentValue.substring(0, cursorPos);
+    const afterCursor = currentValue.substring(cursorPos);
+    const newValue = beforeCursor + (beforeCursor && !beforeCursor.endsWith('\n\n') ? '\n\n' : '') + 
+                    text + 
+                    (!afterCursor.startsWith('\n') ? '\n' : '');
+    
+    // Update textarea value
+    textarea.value = newValue;
+    
+    // Calculate new cursor position (at the end of inserted text)
+    const newCursorPos = beforeCursor.length + (beforeCursor ? 2 : 0) + text.length;
+    
+    // Set cursor position and focus
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
+    
+    // Adjust textarea height
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    
+    // Hide floating bar
+    hideFloatingBar(true);
+  } else {
+    // Only show chat window if textarea doesn't exist or isn't visible
+    chatWindow.showChatWindow();
+    
+    // Wait for the textarea to be available
+    const waitForTextarea = setInterval(() => {
+      const chatInput = document.getElementById('chatInput');
+      const textarea = chatInput?.querySelector('textarea');
+      
+      if (textarea) {
+        clearInterval(waitForTextarea);
+        
+        // Add text to textarea
+        textarea.value = text;
+        textarea.setSelectionRange(0, 0);
+        textarea.focus();
+        
+        // Adjust textarea height
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+        
+        // Hide floating bar
+        hideFloatingBar(true);
+      }
+    }, 50);
+  }
+}
+
 export default {
   createFloatingBar,
   showFloatingBar,

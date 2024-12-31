@@ -416,15 +416,44 @@ function initializeChatWindow() {
   try {
     chrome.storage.local.get(['isChatVisible', 'isExtensionActive', 'isSidebar'], (result) => {
       if (handleRuntimeError()) return;
-      isExtensionActive = result.isExtensionActive !== false; // Default to true if not set
-      isSidebar = result.isSidebar !== false; // Default to true (sidebar mode) if not set
-      isChatVisible = result.isChatVisible === true; // Default to false if not set
+      isExtensionActive = result.isExtensionActive !== false;
+      isSidebar = result.isSidebar !== false;
+      isChatVisible = result.isChatVisible === true;
       
       if (isExtensionActive) {
         if (isChatVisible) {
           showChatWindow();
         } else {
           showChatToggle();
+        }
+        
+        // Add resize observer for popup mode
+        if (chatWindow) {
+          const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+              if (!chatWindow.classList.contains('resizing')) {
+                chatWindow.classList.add('resizing');
+              }
+              
+              // Use requestAnimationFrame for smooth resize
+              requestAnimationFrame(() => {
+                // Adjust textarea height if needed
+                const textarea = chatWindow.querySelector('textarea');
+                if (textarea) {
+                  textarea.style.height = 'auto';
+                  textarea.style.height = `${Math.min(textarea.scrollHeight, entry.contentRect.height - 150)}px`;
+                }
+              });
+              
+              // Remove resizing class after resize ends
+              clearTimeout(chatWindow.resizeTimeout);
+              chatWindow.resizeTimeout = setTimeout(() => {
+                chatWindow.classList.remove('resizing');
+              }, 150);
+            }
+          });
+          
+          resizeObserver.observe(chatWindow);
         }
       }
     });
@@ -568,6 +597,51 @@ export function loadTabSettings(settings) {
   updateChatWindowVisibility();
 }
 
+export function addToChat(selectedText) {
+  return new Promise((resolve) => {
+    const addTextToChat = () => {
+      const chatInput = document.getElementById('chatInput');
+      const textarea = chatInput?.querySelector('textarea');
+      
+      if (textarea) {
+        // Format: cursor here, new line, selected text
+        const currentValue = textarea.value || '';
+        const newValue = currentValue + (currentValue ? '\n\n' : '') + selectedText;
+        textarea.value = newValue;
+        
+        // Place cursor at the beginning of the new content
+        const cursorPosition = currentValue ? currentValue.length + 2 : 0;
+        textarea.setSelectionRange(cursorPosition, cursorPosition);
+        
+        // Focus the textarea
+        textarea.focus();
+        
+        // Make textarea adjust to content
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+        
+        // Trigger input event to handle any other listeners
+        const event = new Event('input', { bubbles: true });
+        textarea.dispatchEvent(event);
+        
+        resolve();
+      } else {
+        setTimeout(addTextToChat, 50);
+      }
+    };
+
+    // If chat is not visible, show it first then add text
+    if (!isChatVisible) {
+      showChatWindow();
+      // Wait for chat window to be fully visible before adding text
+      setTimeout(addTextToChat, 50);
+    } else {
+      // If chat is already visible, just add the text
+      addTextToChat();
+    }
+  });
+}
+
 export default {
   createChatWindow,
   showChatWindow,
@@ -583,4 +657,5 @@ export default {
   isChatVisible,
   handleToggleExtensionPower,
   loadTabSettings,
+  addToChat,
 };

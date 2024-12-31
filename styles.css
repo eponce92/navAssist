@@ -210,13 +210,24 @@
   right: 40px;
   border-radius: 16px;
   border: 1px solid var(--border-color);
-  transition: width 0.3s ease, height 0.3s ease;
   overflow: hidden;
   resize: both;
   min-width: 300px;
   min-height: 400px;
   max-width: 800px;
   max-height: 800px;
+}
+
+#chatWindow.popup-mode.resizing {
+  transition: none !important;
+  will-change: width, height;
+}
+
+#chatWindow.popup-mode:not(.resizing) {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #chatHeader {
@@ -246,10 +257,34 @@
   display: flex;
   gap: 12px;
   background-color: var(--background-color);
-  align-items: center;
+  align-items: flex-start;
   box-sizing: border-box;
   min-height: auto;
   height: auto;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#chatInput textarea {
+  flex: 1;
+  border: none;
+  padding: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  background-color: var(--input-bg-color);
+  color: var(--text-color);
+  border-radius: 8px;
+  resize: none;
+  min-height: 36px;
+  max-height: 150px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+#chatInput textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--primary-color-hover);
 }
 
 #messageInput {
@@ -621,21 +656,23 @@ body {
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
   cursor: nw-resize;
   display: none;
   opacity: 0;
   transition: opacity 0.2s ease;
+  touch-action: none;
+  z-index: 1;
 }
 
 #resizeHandle::after {
   content: '';
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 6px;
-  height: 6px;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
   border-right: 2px solid var(--text-color);
   border-bottom: 2px solid var(--text-color);
   opacity: 0.5;
