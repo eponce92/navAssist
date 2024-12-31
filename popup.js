@@ -557,7 +557,12 @@ document.addEventListener('DOMContentLoaded', function() {
   function checkOllamaConnection() {
     setConnectionStatus('checking');
     fetch('http://localhost:11434/api/tags')
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Ollama server not responding');
+        }
+        return response.json();
+      })
       .then(data => {
         if (data && data.models) {
           setConnectionStatus('ollama-connected');
@@ -567,8 +572,11 @@ document.addEventListener('DOMContentLoaded', function() {
           setConnectionStatus('ollama-disconnected');
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.log('Ollama connection error:', error);
         setConnectionStatus('ollama-disconnected');
+        ollamaModelSelect.innerHTML = '<option value="">Ollama not running</option>';
+        downloadSection.style.display = 'none';
       });
   }
 

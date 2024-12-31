@@ -86,16 +86,36 @@ function handleMouseMove(e) {
       const dy = e.clientY - initialPos.y;
       const newLeft = chatWindow.offsetLeft + dx;
       const newTop = chatWindow.offsetTop + dy;
-      chatWindow.style.left = `${newLeft}px`;
-      chatWindow.style.top = `${newTop}px`;
+      
+      // Keep window within viewport bounds
+      const maxLeft = window.innerWidth - chatWindow.offsetWidth;
+      const maxTop = window.innerHeight - chatWindow.offsetHeight;
+      chatWindow.style.left = `${Math.min(Math.max(0, newLeft), maxLeft)}px`;
+      chatWindow.style.top = `${Math.min(Math.max(0, newTop), maxTop)}px`;
+      
       initialPos = { x: e.clientX, y: e.clientY };
     } else if (isResizing) {
       const dx = e.clientX - initialPos.x;
       const dy = e.clientY - initialPos.y;
-      const newWidth = Math.max(300, initialSize.width + dx);
-      const newHeight = Math.max(400, initialSize.height + dy);
+      const minWidth = 300;
+      const minHeight = 400;
+      const maxWidth = 800;
+      const maxHeight = 800;
+      
+      const newWidth = Math.min(Math.max(minWidth, initialSize.width + dx), maxWidth);
+      const newHeight = Math.min(Math.max(minHeight, initialSize.height + dy), maxHeight);
+      
       chatWindow.style.width = `${newWidth}px`;
       chatWindow.style.height = `${newHeight}px`;
+      
+      // Ensure window stays within viewport
+      const rect = chatWindow.getBoundingClientRect();
+      if (rect.right > window.innerWidth) {
+        chatWindow.style.left = `${window.innerWidth - newWidth}px`;
+      }
+      if (rect.bottom > window.innerHeight) {
+        chatWindow.style.top = `${window.innerHeight - newHeight}px`;
+      }
     } else if (isResizingSidebar) {
       const dx = initialPos.x - e.clientX;
       const newWidth = Math.max(300, initialSidebarWidth + dx);
@@ -106,12 +126,20 @@ function handleMouseMove(e) {
 }
 
 function handleMouseUp() {
-  isDragging = false;
-  isResizing = false;
-  isResizingSidebar = false;
-  document.body.style.userSelect = '';
-  chatWindow.classList.remove('dragging', 'resizing');
-  cancelAnimationFrame(animationFrameId);
+  if (isResizing || isDragging || isResizingSidebar) {
+    isDragging = false;
+    isResizing = false;
+    isResizingSidebar = false;
+    document.body.style.userSelect = '';
+    chatWindow.classList.remove('dragging', 'resizing');
+    cancelAnimationFrame(animationFrameId);
+    
+    // Save the new size if in popup mode
+    if (!chatWindow.classList.contains('sidebar-mode')) {
+      const rect = chatWindow.getBoundingClientRect();
+      initialSize = { width: rect.width, height: rect.height };
+    }
+  }
 }
 
 export function enableDragging(window) {

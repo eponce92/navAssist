@@ -238,6 +238,12 @@ function hideChatWindow() {
       saveTabSettings();
       document.body.style.marginRight = '0';
       
+      // Remove any existing toggle button before showing a new one
+      const existingButton = document.getElementById('showChatToggle');
+      if (existingButton) {
+        existingButton.remove();
+      }
+      
       // Show the toggle button after the chat window is hidden
       showChatToggle();
     }, 300); // Match the transition duration in CSS
@@ -398,14 +404,78 @@ function showChatToggle() {
         <path d="M19 12H5M12 19l-7-7 7-7"/>
       </svg>
     `;
-    toggleButton.addEventListener('click', showChatWindow);
+    
     document.body.appendChild(toggleButton);
   }
   
-  // Make sure it's visible
-  toggleButton.style.display = 'flex';
-  toggleButton.style.visibility = 'visible';
-  toggleButton.style.opacity = '1';
+  // Always load position and setup functionality
+  chrome.storage.sync.get('toggleButtonPosition', (data) => {
+    if (data.toggleButtonPosition !== undefined) {
+      toggleButton.style.top = `${data.toggleButtonPosition}px`;
+      toggleButton.style.transform = 'none';
+    } else {
+      toggleButton.style.top = '50%';
+      toggleButton.style.transform = 'translateY(-50%)';
+    }
+    
+    // Setup drag functionality
+    let isDragging = false;
+    let startY = 0;
+    let startTop = 0;
+    let hasMoved = false;
+    
+    // Remove existing listeners if any
+    const newToggle = toggleButton.cloneNode(true);
+    toggleButton.parentNode.replaceChild(newToggle, toggleButton);
+    toggleButton = newToggle;
+    
+    toggleButton.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      hasMoved = false;
+      startY = e.clientY;
+      const rect = toggleButton.getBoundingClientRect();
+      startTop = rect.top;
+      toggleButton.classList.add('dragging');
+      e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      
+      hasMoved = true;
+      const deltaY = e.clientY - startY;
+      let newTop = startTop + deltaY;
+      
+      // Keep button within window bounds
+      const buttonHeight = toggleButton.offsetHeight;
+      const maxTop = window.innerHeight - buttonHeight;
+      newTop = Math.max(0, Math.min(newTop, maxTop));
+      
+      toggleButton.style.top = `${newTop}px`;
+      toggleButton.style.transform = 'none';
+      
+      // Save position to storage
+      chrome.storage.sync.set({ 'toggleButtonPosition': newTop });
+    });
+    
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        toggleButton.classList.remove('dragging');
+      }
+    });
+    
+    toggleButton.addEventListener('click', (e) => {
+      if (!isDragging && !hasMoved) {
+        showChatWindow();
+      }
+    });
+    
+    // Make sure it's visible
+    toggleButton.style.display = 'flex';
+    toggleButton.style.visibility = 'visible';
+    toggleButton.style.opacity = '1';
+  });
 }
 
 export function handleToggleExtensionPower(isEnabled) {

@@ -566,14 +566,45 @@ function handleGetExtensionState(sendResponse) {
   });
 }
 
+function sendMessageWithRetry(tabId, message, maxRetries = 5) {
+  let attempt = 0;
+  
+  function trySendMessage() {
+    chrome.tabs.sendMessage(tabId, {action: 'ping'}, (response) => {
+      if (chrome.runtime.lastError) {
+        if (attempt < maxRetries) {
+          attempt++;
+          setTimeout(trySendMessage, 200 * attempt);
+        }
+        return;
+      }
+      chrome.tabs.sendMessage(tabId, message).catch(error => {
+        console.log('Error sending message:', error);
+      });
+    });
+  }
+  
+  trySendMessage();
+}
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
-    chrome.storage.local.get('isExtensionActive', (result) => {
+    chrome.storage.local.get(['isExtensionActive', 'isPredictionBarEnabled'], (result) => {
       const isActive = result.isExtensionActive !== false;
-      chrome.tabs.sendMessage(tabId, {
+      const isPredictionBarEnabled = result.isPredictionBarEnabled === true;
+      
+      // Send messages with retry logic
+      sendMessageWithRetry(tabId, {
         action: 'toggleExtensionPower',
         isEnabled: isActive
       });
+      
+      if (isActive) {
+        sendMessageWithRetry(tabId, {
+          action: 'togglePredictionBar',
+          isEnabled: isPredictionBarEnabled
+        });
+      }
     });
   }
 });
