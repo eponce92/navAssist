@@ -16,15 +16,34 @@ function handleSelectionChange() {
   
   // If there's no text selected or the selection is collapsed
   if (!text || selection.isCollapsed) {
-    // Only hide if we're not currently editing
-    if (!isEditingAI() && !isMouseOverFloatingBar()) {
+    // Only hide if we're not currently editing and not in Gmail compose
+    const isGmailCompose = document.querySelector('.Am.Al.editable');
+    if (!isEditingAI() && !isMouseOverFloatingBar() && !isGmailCompose) {
       hideFloatingBar(true);
     }
-  } else {
-    // Update the selection if there is text selected
-    if (selection.rangeCount > 0) {
-      updateSelection(text, selection.getRangeAt(0));
-    }
+    return;
+  }
+
+  // Get the active element to check if we're in an editable area
+  const activeElement = document.activeElement;
+  const isGmailCompose = activeElement.classList && 
+                        (activeElement.classList.contains('Am') || 
+                         activeElement.classList.contains('editable') ||
+                         activeElement.closest('.Am.Al.editable'));
+  
+  const isEditableArea = activeElement.isContentEditable || 
+                        activeElement.tagName === 'TEXTAREA' || 
+                        (activeElement.tagName === 'DIV' && activeElement.getAttribute('role') === 'textbox') ||
+                        isGmailCompose;
+
+  if (!isEditableArea) return;
+
+  // Update the selection if there is text selected
+  if (selection.rangeCount > 0) {
+    updateSelection(text, selection.getRangeAt(0));
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    showFloatingBar(rect.left + window.scrollX, rect.top + window.scrollY);
   }
 }
 
@@ -71,14 +90,23 @@ function createFloatingBar() {
   const aiEditButton = floatingBar.querySelector('#aiEdit');
   aiEditButton.addEventListener('click', toggleAiEditInput);
 
+  // Add event listeners for AI edit input
+  const aiEditInput = floatingBar.querySelector('#aiEditInput');
+  aiEditInput.addEventListener('keydown', handleAiEditInputKeydown);
+  aiEditInput.addEventListener('blur', handleAiEditInputBlur);
+
   addTooltipListeners(transferButton, 'Transfer to Chat');
   addTooltipListeners(fixGrammarButton, 'Fix Grammar');
   addTooltipListeners(aiEditButton, 'AI Edit');
 
-  // Add document click listener to hide tooltips when clicking outside
+  // Add document click listener to hide tooltips and handle clicks outside
   document.addEventListener('mousedown', (e) => {
     if (!floatingBar.contains(e.target)) {
       hideTooltip();
+      // Only hide floating bar if we're not editing
+      if (!isEditingAI()) {
+        hideFloatingBar(true);
+      }
     }
   });
 
@@ -141,6 +169,8 @@ function showFloatingBar(x, y, isCtrlA = false) {
   
   // Get the selection range and its bounding rect
   const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+  
   const range = selection.getRangeAt(0);
   const rect = range.getBoundingClientRect();
   
@@ -151,7 +181,7 @@ function showFloatingBar(x, y, isCtrlA = false) {
   const barHeight = floatingBar.offsetHeight;
   
   // Default vertical offset (much larger to ensure visibility)
-  const verticalOffset = 60; // Increased from 30 to 60px
+  const verticalOffset = 60;
   
   // Try to position above first
   let top = rect.top - barHeight - verticalOffset;
@@ -180,9 +210,12 @@ function showFloatingBar(x, y, isCtrlA = false) {
   // Keep within horizontal bounds
   left = Math.max(10, Math.min(viewportWidth - barWidth - 10, left));
   
-  // Apply the calculated position
-  floatingBar.style.left = `${left + window.pageXOffset}px`;
-  floatingBar.style.top = `${top + window.pageYOffset}px`;
+  // Apply the calculated position, considering scroll position
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+  
+  floatingBar.style.left = `${left + scrollX}px`;
+  floatingBar.style.top = `${top + scrollY}px`;
   floatingBar.style.display = 'flex';
   floatingBar.style.position = 'absolute';
   floatingBar.style.zIndex = '2147483647';
@@ -317,20 +350,33 @@ function isEditingAI() {
 function isMouseOverFloatingBar() {
   if (!floatingBar) return false;
   
+  // Get the current mouse position from the mousemove event listener
+  const mousePosition = {
+    x: 0,
+    y: 0
+  };
+  
+  document.addEventListener('mousemove', (e) => {
+    mousePosition.x = e.clientX;
+    mousePosition.y = e.clientY;
+  });
+  
   const rect = floatingBar.getBoundingClientRect();
-  const mouseX = event.clientX;
-  const mouseY = event.clientY;
   
   return (
-    mouseX >= rect.left &&
-    mouseX <= rect.right &&
-    mouseY >= rect.top &&
-    mouseY <= rect.bottom
+    mousePosition.x >= rect.left &&
+    mousePosition.x <= rect.right &&
+    mousePosition.y >= rect.top &&
+    mousePosition.y <= rect.bottom
   );
 }
 
-function toggleAiEditInput() {
+function toggleAiEditInput(event) {
   if (!floatingBar) return;
+  
+  // Prevent the event from bubbling up
+  event.preventDefault();
+  event.stopPropagation();
   
   const aiEditInputContainer = floatingBar.querySelector('#aiEditInputContainer');
   const aiEditInput = floatingBar.querySelector('#aiEditInput');
@@ -339,8 +385,39 @@ function toggleAiEditInput() {
   
   if (aiEditInputContainer.style.display === 'none') {
     aiEditInputContainer.style.display = 'block';
-    aiEditInput.focus();
     floatingBar.style.width = 'auto';
+    
+    // Update the floating bar position to ensure it's fully visible
+    const rect = floatingBar.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    if (rect.right > viewportWidth - 10) {
+      const newLeft = viewportWidth - rect.width - 10;
+      floatingBar.style.left = `${newLeft}px`;
+    }
+    
+    // Delay focus to ensure Gmail doesn't interfere
+    setTimeout(() => {
+      aiEditInput.focus();
+      // Prevent Gmail from capturing the focus
+      aiEditInput.addEventListener('blur', (e) => {
+        if (isEditingAI()) {
+          e.preventDefault();
+          e.stopPropagation();
+          aiEditInput.focus();
+        }
+      }, { once: true });
+    }, 50);
+    
+    // Add click event listener to prevent hiding when clicking inside the input
+    aiEditInput.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    
+    // Prevent Gmail from handling keydown events
+    aiEditInput.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+    }, true);
   } else {
     aiEditInputContainer.style.display = 'none';
     floatingBar.style.width = '';
@@ -395,12 +472,15 @@ ${selectedText}`;
 }
 
 function handleAiEditInputBlur(event) {
-  // Delay the hide check to allow for button clicks
-  setTimeout(() => {
-    if (!isMouseOverFloatingBar()) {
-      hideFloatingBar(true);
-    }
-  }, 100);
+  // Don't hide if clicking inside the floating bar
+  if (floatingBar && floatingBar.contains(event.relatedTarget)) {
+    return;
+  }
+  
+  // Only hide if we're not currently editing
+  if (!isEditingAI()) {
+    hideFloatingBar(true);
+  }
 }
 
 function updateFloatingBarWidth() {
