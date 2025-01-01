@@ -417,43 +417,7 @@ export function createChatWindow() {
 }
 
 async function handleTTSClick(button, text) {
-  try {
-    button.classList.add('playing');
-    button.querySelector('svg').innerHTML = `
-      <circle cx="12" cy="12" r="10" />
-      <rect x="9" y="9" width="2" height="6" />
-      <rect x="13" y="9" width="2" height="6" />
-    `;
-
-    // Get voice ID from storage
-    const voiceId = await new Promise((resolve) => {
-      chrome.storage.sync.get('selectedVoiceId', (data) => {
-        resolve(data.selectedVoiceId || '21m00Tcm4TlvDq8ikWAM'); // Default voice ID
-      });
-    });
-
-    const audioSource = await ttsService.textToSpeech(text, voiceId);
-    
-    // When audio finishes
-    audioSource.onended = () => {
-      button.classList.remove('playing');
-      button.querySelector('svg').innerHTML = `
-        <path d="M11 5L6 9H2v6h4l5 4V5z" />
-        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-      `;
-    };
-
-  } catch (error) {
-    console.error('Error playing TTS:', error);
-    button.classList.remove('playing');
-    button.querySelector('svg').innerHTML = `
-      <path d="M11 5L6 9H2v6h4l5 4V5z" />
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-    `;
-    throw error;
-  }
+  await ttsService.playTTS(text, button.closest('.message'));
 }
 
 export async function sendMessage() {

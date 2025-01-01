@@ -1,71 +1,191 @@
-async function textToSpeech(text, voiceId) {
-  const apiKey = await getApiKey();
-  if (!apiKey) {
-    throw new Error('API key not found');
-  }
+// Constants
+const SPEAKER_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>`;
+const STOP_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>`;
+const PLAY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
 
-  const model = await getSelectedModel();
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`;
+let currentAudio = null;
+let currentButton = null;
+let db = null;
+let audioContext = null;
+let audioQueue = [];
+let isPlaying = false;
+let sourceNode = null;
+let mediaSource = null;
+let sourceBuffer = null;
+let audioElement = null;
+let pendingChunks = [];
 
+// Initialize IndexedDB
+async function initDB() {
+  if (db) return db;
+  
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('TTS_DB', 1);
+    
+    request.onerror = () => {
+      console.error('Failed to open database:', request.error);
+      reject(request.error);
+    };
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('audioCache')) {
+        const store = db.createObjectStore('audioCache', { keyPath: 'text' });
+        store.createIndex('timestamp', 'timestamp');
+      }
+    };
+    
+    request.onsuccess = () => {
+      db = request.result;
+      console.log('✅ Database initialized successfully');
+      
+      // Handle database errors
+      db.onerror = (event) => {
+        console.error('Database error:', event.target.error);
+      };
+      
+      resolve(db);
+    };
+  });
+}
+
+async function saveToCache(text, audioBlob) {
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Accept': 'audio/mpeg',
-        'Content-Type': 'application/json',
-        'xi-api-key': apiKey
-      },
-      body: JSON.stringify({
-        text: text,
-        model_id: model,
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75
+    console.log('💾 Attempting to save audio to cache...');
+    const database = await initDB();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(['audioCache'], 'readwrite');
+      const store = transaction.objectStore('audioCache');
+      
+      // First check if it exists
+      const getRequest = store.get(text);
+      
+      getRequest.onsuccess = () => {
+        if (getRequest.result) {
+          console.log('⚠️ Audio already exists in cache, skipping save');
+          resolve();
+          return;
         }
-      })
+        
+        // If it doesn't exist, save it
+        const putRequest = store.put({
+          text,
+          audioBlob,
+          timestamp: Date.now()
+        });
+        
+        putRequest.onsuccess = () => {
+          console.log('✅ Audio saved to cache successfully');
+          resolve();
+        };
+        
+        putRequest.onerror = () => {
+          console.error('Error saving to cache:', putRequest.error);
+          reject(putRequest.error);
+        };
+      };
+      
+      getRequest.onerror = () => {
+        console.error('Error checking cache:', getRequest.error);
+        reject(getRequest.error);
+      };
+      
+      transaction.oncomplete = () => {
+        console.log('💾 Cache transaction completed');
+      };
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to generate speech: ${errorText}`);
-    }
-
-    // Create a new Audio context
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const reader = response.body.getReader();
-    const chunks = [];
-
-    // Read the stream
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-    }
-
-    // Combine all chunks into a single Uint8Array
-    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const audioData = new Uint8Array(totalLength);
-    let position = 0;
-    for (const chunk of chunks) {
-      audioData.set(chunk, position);
-      position += chunk.length;
-    }
-
-    // Decode the audio data
-    const audioBuffer = await audioContext.decodeAudioData(audioData.buffer);
-    
-    // Create source and connect to destination
-    const source = audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(audioContext.destination);
-    
-    // Start playing
-    source.start(0);
-
-    return source; // Return the audio source for control (stop, etc.)
   } catch (error) {
-    console.error('Error in textToSpeech:', error);
+    console.error('Error in saveToCache:', error);
     throw error;
+  }
+}
+
+async function getFromCache(text) {
+  try {
+    console.log('🔍 Checking cache for text:', text.substring(0, 50) + '...');
+    const database = await initDB();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(['audioCache'], 'readonly');
+      const store = transaction.objectStore('audioCache');
+      const request = store.get(text);
+      
+      request.onsuccess = () => {
+        const result = request.result;
+        if (result?.audioBlob) {
+          console.log('✅ Found audio in cache');
+          resolve(result.audioBlob);
+        } else {
+          console.log('❌ Audio not found in cache');
+          resolve(null);
+        }
+      };
+      
+      request.onerror = () => {
+        console.error('Error reading from cache:', request.error);
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error('Error in getFromCache:', error);
+    return null;
+  }
+}
+
+async function isInTTSCache(text) {
+  try {
+    const database = await initDB();
+    
+    return new Promise((resolve) => {
+      const transaction = database.transaction(['audioCache'], 'readonly');
+      const store = transaction.objectStore('audioCache');
+      const request = store.get(text);
+      
+      request.onsuccess = () => {
+        const exists = !!request.result?.audioBlob;
+        console.log(`🔍 Cache check: ${exists ? 'Found' : 'Not found'} in cache`);
+        resolve(exists);
+      };
+      
+      request.onerror = () => {
+        console.error('Error checking cache:', request.error);
+        resolve(false);
+      };
+    });
+  } catch (error) {
+    console.error('Error in isInTTSCache:', error);
+    return false;
+  }
+}
+
+function updateTTSButton(button, text) {
+  isInTTSCache(text).then(isCached => {
+    button.innerHTML = isCached ? PLAY_ICON : SPEAKER_ICON;
+    button.title = isCached ? 'Play cached audio' : 'Generate speech';
+    button.dataset.cached = isCached ? 'true' : 'false';
+  });
+}
+
+function stopCurrentAudio() {
+  if (audioElement) {
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    audioElement = null;
+  }
+  
+  if (mediaSource && mediaSource.readyState === 'open') {
+    mediaSource.endOfStream();
+  }
+  
+  mediaSource = null;
+  sourceBuffer = null;
+  pendingChunks = [];
+  
+  if (currentButton) {
+    currentButton.innerHTML = PLAY_ICON;
+    currentButton.classList.remove('playing');
+    currentButton = null;
   }
 }
 
@@ -77,361 +197,210 @@ async function getApiKey() {
   });
 }
 
-async function getSelectedModel() {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get('selectedTTSModel', (data) => {
-      resolve(data.selectedTTSModel || 'eleven_monolingual_v1');
-    });
-  });
+async function initAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
 }
 
-// TTS cache using IndexedDB
-const TTS_CACHE_DB = 'ttsCache';
-const TTS_CACHE_STORE = 'audioData';
-const TTS_CACHE_VERSION = 1;
+async function processAudioChunk(chunk) {
+  const audioContext = await initAudioContext();
+  const arrayBuffer = await chunk.arrayBuffer();
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  return audioBuffer;
+}
 
-let ttsDb = null;
-
-// Initialize IndexedDB for TTS cache
-async function initTTSCache() {
-  if (ttsDb) return ttsDb;
-  
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(TTS_CACHE_DB, TTS_CACHE_VERSION);
+async function playNextInQueue() {
+  if (!isPlaying && audioQueue.length > 0) {
+    isPlaying = true;
+    const audioBuffer = audioQueue.shift();
     
-    request.onerror = () => {
-      console.error('Failed to open TTS cache database');
-      reject(request.error);
+    sourceNode = audioContext.createBufferSource();
+    sourceNode.buffer = audioBuffer;
+    sourceNode.connect(audioContext.destination);
+    
+    sourceNode.onended = () => {
+      isPlaying = false;
+      playNextInQueue();
     };
     
-    request.onsuccess = (event) => {
-      ttsDb = event.target.result;
-      resolve(ttsDb);
-    };
-    
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(TTS_CACHE_STORE)) {
-        db.createObjectStore(TTS_CACHE_STORE, { keyPath: 'text' });
-      }
-    };
-  });
-}
-
-// Check if audio exists in cache
-async function getFromTTSCache(text) {
-  try {
-    if (!ttsDb) await initTTSCache();
-    
-    return new Promise((resolve, reject) => {
-      const transaction = ttsDb.transaction([TTS_CACHE_STORE], 'readonly');
-      const store = transaction.objectStore(TTS_CACHE_STORE);
-      const request = store.get(text);
-      
-      request.onsuccess = () => {
-        resolve(request.result?.audioData || null);
-      };
-      
-      request.onerror = () => {
-        console.error('Error reading from TTS cache');
-        reject(request.error);
-      };
-    });
-  } catch (error) {
-    console.error('Error accessing TTS cache:', error);
-    return null;
+    sourceNode.start(0);
   }
 }
 
-// Save audio to cache
-async function saveToTTSCache(text, audioData) {
-  try {
-    if (!ttsDb) await initTTSCache();
-    
-    return new Promise((resolve, reject) => {
-      const transaction = ttsDb.transaction([TTS_CACHE_STORE], 'readwrite');
-      const store = transaction.objectStore(TTS_CACHE_STORE);
-      const request = store.put({ text, audioData });
-      
-      request.onsuccess = () => resolve();
-      request.onerror = () => {
-        console.error('Error saving to TTS cache');
-        reject(request.error);
-      };
-    });
-  } catch (error) {
-    console.error('Error saving to TTS cache:', error);
-  }
-}
-
-// SVG icons for TTS buttons
-const SPEAKER_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-</svg>`;
-
-const PLAY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-</svg>`;
-
-const STOP_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="4" y="4" width="16" height="16"></rect>
-</svg>`;
-
-// Keep track of currently playing audio
-let currentAudio = null;
-let currentButton = null;
-
-// Stop current audio if playing
-function stopCurrentAudio() {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-    currentAudio = null;
-    
-    if (currentButton) {
-      const isCached = currentButton.dataset.cached === 'true';
-      currentButton.innerHTML = isCached ? PLAY_ICON : SPEAKER_ICON;
-      currentButton.title = isCached ? 'Play cached audio' : 'Generate speech';
-      currentButton.classList.remove('playing');
-      currentButton = null;
-    }
-  }
-}
-
-// Check if text is in cache without retrieving the audio data
-async function isInTTSCache(text) {
-  try {
-    console.log('🔍 Checking if text exists in TTS cache...');
-    if (!ttsDb) {
-      console.log('📂 Initializing TTS cache database...');
-      await initTTSCache();
-    }
-    
-    return new Promise((resolve) => {
-      const transaction = ttsDb.transaction([TTS_CACHE_STORE], 'readonly');
-      const store = transaction.objectStore(TTS_CACHE_STORE);
-      const request = store.count(text);
-      
-      request.onsuccess = () => {
-        const exists = request.result > 0;
-        console.log(exists ? '✅ Text found in cache' : '❌ Text not in cache');
-        resolve(exists);
-      };
-      
-      request.onerror = () => {
-        console.error('❌ Error checking TTS cache');
-        resolve(false);
-      };
-    });
-  } catch (error) {
-    console.error('❌ Error accessing TTS cache:', error);
-    return false;
-  }
-}
-
-// Update button icon based on cache status
-async function updateTTSButton(button, text) {
-  console.log('🔄 Updating TTS button icon...');
-  const isCached = await isInTTSCache(text);
-  button.innerHTML = isCached ? PLAY_ICON : SPEAKER_ICON;
-  button.title = isCached ? 'Play cached audio' : 'Generate speech';
-  button.dataset.cached = isCached ? 'true' : 'false';
-  console.log(`🎯 Button updated to ${isCached ? 'PLAY' : 'SPEAKER'} icon`);
-}
-
-// Modified playTTS function with stop functionality
 async function playTTS(text, messageElement) {
-  if (!text || text.trim() === '') {
-    console.log('❌ No text provided for TTS');
-    return;
-  }
-  
-  // Get the actual text content from the message element
-  const messageContent = messageElement.querySelector('.message-content');
-  if (messageContent) {
-    text = messageContent.textContent.trim();
-  }
-  
-  if (!text) {
-    console.log('❌ No text found in message content');
-    return;
-  }
-  
   console.log('🎵 Starting TTS process for:', text.substring(0, 50) + '...');
   
-  // Find the TTS button in the message element
-  const ttsButton = messageElement.querySelector('.tts-button');
-  if (!ttsButton) {
-    console.error('❌ TTS button not found in message element');
-    return;
-  }
-
-  // If this button is currently playing, stop it
-  if (ttsButton === currentButton) {
+  const button = messageElement.querySelector('.tts-button');
+  if (!button) return;
+  
+  // If this is the current playing audio, stop it
+  if (currentButton === button) {
     stopCurrentAudio();
     return;
   }
-
-  // Stop any other playing audio
+  
+  // Stop any currently playing audio
   stopCurrentAudio();
   
+  // Set this as the current button
+  currentButton = button;
+  
   try {
-    // Check cache first
-    console.log('🔍 Checking TTS cache...');
-    const cachedAudio = await getFromTTSCache(text);
-    if (cachedAudio) {
-      console.log('💾 Found cached audio! Using it...');
-      // Update button to stop icon
-      ttsButton.innerHTML = STOP_ICON;
-      ttsButton.title = 'Stop playback';
-      ttsButton.dataset.cached = 'true';
-      console.log('🔄 Updated button to STOP icon');
-      
-      const audio = new Audio(cachedAudio);
-      console.log('▶️ Playing cached audio...');
-      
-      // Set as current audio
-      currentAudio = audio;
-      currentButton = ttsButton;
-      
-      // Add playing state
-      ttsButton.classList.add('playing');
-      
-      audio.onended = () => {
-        ttsButton.classList.remove('playing');
-        ttsButton.innerHTML = PLAY_ICON;
-        ttsButton.title = 'Play cached audio';
-        currentAudio = null;
-        currentButton = null;
-      };
-      
-      await audio.play();
-      return;
+    // Check if we already know it's cached from the button state
+    const isCached = button.dataset.cached === 'true';
+    let audioBlob = null;
+    
+    if (isCached) {
+      console.log('🎯 Using known cached audio');
+      audioBlob = await getFromCache(text);
+      if (!audioBlob) {
+        console.warn('⚠️ Cache mismatch, regenerating audio');
+      }
     }
     
-    console.log('🌐 No cache found, making API call to ElevenLabs...');
-    // If not in cache, show stop icon and loading state
-    ttsButton.innerHTML = STOP_ICON;
-    ttsButton.title = 'Stop generation';
-    ttsButton.dataset.cached = 'false';
-    ttsButton.classList.add('loading');
-    console.log('🔄 Updated button to STOP icon with loading state');
-    
-    // Set as current button
-    currentButton = ttsButton;
-    
-    // Get API key and model
-    const apiKey = await getApiKey();
-    if (!apiKey) {
-      throw new Error('No API key found');
-    }
-    const model = await getSelectedModel();
-    console.log('🔑 Using model:', model);
-    
-    // Get voice ID from storage
-    const voiceId = await new Promise((resolve) => {
-      chrome.storage.sync.get('selectedVoiceId', (data) => {
-        resolve(data.selectedVoiceId || 'pNInz6obpgDQGcFmaJgB'); // Default voice
+    if (!audioBlob) {
+      console.log('🌐 Generating new audio...');
+      
+      // Update button to loading state
+      button.innerHTML = STOP_ICON;
+      button.classList.add('playing');
+      console.log('🔄 Updated button to STOP icon with loading state');
+      
+      // Get API key
+      const apiKey = await getApiKey();
+      if (!apiKey) {
+        throw new Error('No API key found. Please set your ElevenLabs API key in the extension settings.');
+      }
+      
+      // Get voice settings from storage
+      const settings = await new Promise(resolve => {
+        chrome.storage.sync.get(['selectedModel', 'selectedVoiceId'], resolve);
       });
-    });
-    console.log('🎤 Using voice ID:', voiceId);
-    
-    // Make API call
-    console.log('📡 Sending request to ElevenLabs API...');
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'audio/mpeg',
-        'Content-Type': 'application/json',
-        'xi-api-key': apiKey
-      },
-      body: JSON.stringify({
-        text: text,
-        model_id: model,
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75
+      
+      const model = settings.selectedModel || 'eleven_multilingual_v2';
+      const voiceId = settings.selectedVoiceId || 'das1dbR89MGDgpWlvSBq';
+      
+      console.log('🔑 Using model:', model);
+      console.log('🎤 Using voice ID:', voiceId);
+      
+      console.log('📡 Sending request to ElevenLabs API...');
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey
+        },
+        body: JSON.stringify({
+          text,
+          model_id: model,
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75
+          },
+          output_format: 'mp3_44100_128',
+          optimize_streaming_latency: 3
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || response.statusText;
+        console.error('API Error:', errorMessage);
+        throw new Error(`TTS API call failed: ${errorMessage}`);
+      }
+
+      // Initialize streaming
+      audioElement = new Audio();
+      mediaSource = new MediaSource();
+      audioElement.src = URL.createObjectURL(mediaSource);
+
+      mediaSource.addEventListener('sourceopen', async () => {
+        sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        sourceBuffer.mode = 'sequence';
+        
+        // Handle sourceBuffer updates
+        sourceBuffer.addEventListener('updateend', () => {
+          if (pendingChunks.length > 0 && !sourceBuffer.updating) {
+            const chunk = pendingChunks.shift();
+            sourceBuffer.appendBuffer(chunk);
+          }
+        });
+
+        // Start reading the stream
+        const reader = response.body.getReader();
+        const chunks = [];
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            chunks.push(value);
+            
+            // Append chunk to source buffer if not updating
+            if (!sourceBuffer.updating) {
+              sourceBuffer.appendBuffer(value);
+            } else {
+              pendingChunks.push(value);
+            }
+          }
+
+          // Combine chunks for caching
+          audioBlob = new Blob(chunks, { type: 'audio/mpeg' });
+          await saveToCache(text, audioBlob);
+          button.dataset.cached = 'true';
+
+          // End the stream
+          mediaSource.endOfStream();
+        } catch (error) {
+          console.error('Error while streaming:', error);
+          throw error;
         }
-      })
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`TTS API call failed: ${errorData.detail || response.statusText}`);
+      });
+
+      // Play the audio
+      await audioElement.play();
+      
+    } else {
+      // For cached audio, play it directly
+      audioElement = new Audio(URL.createObjectURL(audioBlob));
+      audioElement.addEventListener('ended', () => {
+        button.innerHTML = PLAY_ICON;
+        button.classList.remove('playing');
+        currentButton = null;
+      });
+      await audioElement.play();
     }
     
-    console.log('✅ Received audio from API');
-    // Convert response to base64 for storage
-    const audioBlob = await response.blob();
-    const reader = new FileReader();
-    reader.readAsDataURL(audioBlob);
-    
-    reader.onloadend = async () => {
-      const base64Audio = reader.result;
-      // Save to cache
-      console.log('💾 Saving audio to cache...');
-      await saveToTTSCache(text, base64Audio);
-      console.log('✅ Audio saved to cache successfully');
-      
-      // Update button to stop icon
-      ttsButton.innerHTML = STOP_ICON;
-      ttsButton.title = 'Stop playback';
-      ttsButton.classList.remove('loading');
-      ttsButton.dataset.cached = 'true';
-      console.log('🔄 Updated button to STOP icon');
-      
-      // Play the audio
-      console.log('▶️ Playing new audio...');
-      const audio = new Audio(base64Audio);
-      
-      // Set as current audio
-      currentAudio = audio;
-      
-      audio.onended = () => {
-        ttsButton.classList.remove('playing');
-        ttsButton.innerHTML = PLAY_ICON;
-        ttsButton.title = 'Play cached audio';
-        currentAudio = null;
-        currentButton = null;
-      };
-      
-      ttsButton.classList.add('playing');
-      await audio.play();
-    };
+    // Update button state
+    button.innerHTML = STOP_ICON;
+    console.log('🔄 Updated button to STOP icon');
     
   } catch (error) {
-    console.error('❌ Error in TTS playback:', error);
-    // Show error message to user
+    console.error('Error in TTS playback:', error);
+    button.innerHTML = SPEAKER_ICON;
+    button.classList.remove('playing');
+    currentButton = null;
+    button.dataset.cached = 'false';
+    
+    // Show error message
     const errorDiv = document.createElement('div');
     errorDiv.className = 'tts-error';
-    errorDiv.textContent = 'Failed to play audio. Please try again.';
+    errorDiv.textContent = error.message || 'Failed to play audio. Please try again.';
     messageElement.appendChild(errorDiv);
-    setTimeout(() => errorDiv.remove(), 3000);
-    
-    // Reset button to initial state
-    const isCached = ttsButton.dataset.cached === 'true';
-    ttsButton.innerHTML = isCached ? PLAY_ICON : SPEAKER_ICON;
-    ttsButton.title = isCached ? 'Play cached audio' : 'Generate speech';
-    ttsButton.classList.remove('loading', 'playing');
-    currentButton = null;
-    console.log('🔄 Reset button to initial state due to error');
+    setTimeout(() => errorDiv.remove(), 5000);
   }
 }
 
+// Export everything as a default object
 export default {
-  textToSpeech,
-  getApiKey,
-  getSelectedModel,
-  initTTSCache,
-  getFromTTSCache,
-  saveToTTSCache,
-  playTTS,
-  updateTTSButton,
-  isInTTSCache,
-  // Export icons for use in UI
   SPEAKER_ICON,
-  PLAY_ICON,
   STOP_ICON,
+  PLAY_ICON,
+  isInTTSCache,
+  updateTTSButton,
+  playTTS
 };

@@ -1,5 +1,6 @@
 // UI-related functionality for the chat window
 
+import utils from './utils.js';
 import ttsService from './ttsService.js';
 
 let isDragging = false;

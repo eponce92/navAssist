@@ -16,6 +16,24 @@ function handleRuntimeError() {
   if (chrome.runtime.lastError) {
     console.error('Extension context invalidated:', chrome.runtime.lastError);
     isExtensionActive = false;
+    
+    // Clean up existing UI elements
+    if (chatWindow) {
+      chatWindow.remove();
+      chatWindow = null;
+    }
+    const toggleButton = document.getElementById('showChatToggle');
+    if (toggleButton) {
+      toggleButton.remove();
+    }
+    
+    // Try to recover the extension context
+    try {
+      chrome.runtime.connect();
+    } catch (e) {
+      console.log('Could not recover extension context:', e);
+    }
+    
     return true;
   }
   return false;
@@ -453,6 +471,7 @@ function updateChatWindowVisibility() {
             createChatWindow();
           } catch (err) {
             console.log('Could not create chat window:', err);
+            isExtensionActive = false;
             return;
           }
         }
@@ -474,27 +493,25 @@ function updateChatWindowVisibility() {
           chatWindow.style.opacity = '0';
         }
         try {
-          showChatToggle();
+          const toggleButton = showChatToggle();
+          if (!toggleButton) {
+            console.log('Could not create toggle button');
+            isExtensionActive = false;
+          }
         } catch (err) {
           console.log('Could not show chat toggle:', err);
+          isExtensionActive = false;
         }
       }
-      // Create prediction bar when extension is active
-      try {
-        predictionBar.createPredictionBar();
-      } catch (err) {
-        console.log('Could not create prediction bar:', err);
-      }
     } else {
+      // Clean up UI elements when extension is not active
       if (chatWindow) {
-        chatWindow.style.display = 'none';
-        chatWindow.style.visibility = 'hidden';
-        chatWindow.style.opacity = '0';
+        chatWindow.remove();
+        chatWindow = null;
       }
-      try {
-        predictionBar.removePredictionBar();
-      } catch (err) {
-        console.log('Could not remove prediction bar:', err);
+      const toggleButton = document.getElementById('showChatToggle');
+      if (toggleButton) {
+        toggleButton.remove();
       }
     }
   } catch (error) {
@@ -634,6 +651,12 @@ function handleDragEnd(e) {
 
 function showChatToggle() {
   try {
+    // Check if Chrome API is available
+    if (!chrome.runtime) {
+      console.log('Chrome API not available, extension may be reloading');
+      return null;
+    }
+
     // Remove any existing toggle button
     const existingButton = document.getElementById('showChatToggle');
     if (existingButton) {
@@ -646,20 +669,28 @@ function showChatToggle() {
     toggleButton.setAttribute('aria-label', 'Toggle Chat');
     toggleButton.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 12H5M12 19l-7-7 7-7"/>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z"/>
       </svg>
     `;
 
     // Check if we have a stored position
-    chrome.storage.local.get('toggleButtonPosition', (result) => {
-      if (result.toggleButtonPosition !== undefined) {
-        toggleButton.style.top = `${result.toggleButtonPosition}px`;
-        toggleButton.style.transform = 'none';
-      } else {
-        toggleButton.style.top = '50%';
-        toggleButton.style.transform = 'translateY(-50%)';
-      }
-    });
+    try {
+      chrome.storage.local.get('toggleButtonPosition', (result) => {
+        if (!chrome.runtime.lastError) {
+          if (result.toggleButtonPosition !== undefined) {
+            toggleButton.style.top = `${result.toggleButtonPosition}px`;
+            toggleButton.style.transform = 'none';
+          } else {
+            toggleButton.style.top = '50%';
+            toggleButton.style.transform = 'translateY(-50%)';
+          }
+        }
+      });
+    } catch (e) {
+      console.log('Could not get stored position:', e);
+      toggleButton.style.top = '50%';
+      toggleButton.style.transform = 'translateY(-50%)';
+    }
 
     document.body.appendChild(toggleButton);
 
@@ -671,7 +702,8 @@ function showChatToggle() {
     return toggleButton;
   } catch (error) {
     console.error('Error in showChatToggle:', error);
-    window.location.reload();
+    isExtensionActive = false;
+    return null;
   }
 }
 

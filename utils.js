@@ -147,29 +147,54 @@ function hideLoadingIndicator() {
 }
 
 function markdownToHtml(markdown) {
-  return markdown
-    // Headers
-    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-    // Bold text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Italic text
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Code blocks
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, lang, code) {
-      return `<pre><code class="language-${lang || ''}">${code.trim()}</code></pre>`;
+  if (!markdown) return '';
+  
+  // First, normalize line endings
+  let text = markdown.replace(/\r\n/g, '\n');
+  
+  // Process the text
+  text = text
+    // Remove multiple consecutive line breaks first
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    
+    // Code blocks - styled monospace block
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+      return `<div class="code-block"><code>${code.trim()}</code></div>`;
     })
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Unordered lists
-    .replace(/^\s*[-*+] (.+)/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)\s+(?=<li>)/g, '$1</ul><ul>')
-    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-    // Links
-    .replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-    // Line breaks
+    
+    // Inline code - styled monospace
+    .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+    
+    // Headers with different sizes
+    .replace(/^# (.*$)/gm, '<div class="md-h1">$1</div>')
+    .replace(/^## (.*$)/gm, '<div class="md-h2">$1</div>')
+    .replace(/^### (.*$)/gm, '<div class="md-h3">$1</div>')
+    
+    // Bold text
+    .replace(/\*\*(.*?)\*\*/g, '<span class="md-bold">$1</span>')
+    
+    // Italic text
+    .replace(/\*(.*?)\*/g, '<span class="md-italic">$1</span>')
+    
+    // Unordered lists with proper indentation and bullets
+    .replace(/^\s*[-*+] (.+)$/gm, '<div class="md-list-item">• $1</div>')
+    
+    // Links with subtle styling
+    .replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a class="md-link" href="$2">$1</a>')
+    
+    // Ensure paragraphs are separated
+    .replace(/\n\n/g, '<div class="md-paragraph-break"></div>')
+    
+    // Single line breaks
     .replace(/\n/g, '<br>');
+  
+  // Clean up any excessive breaks
+  text = text
+    .replace(/<div class="md-paragraph-break"><\/div>\s*<div class="md-paragraph-break"><\/div>/g, '<div class="md-paragraph-break"></div>')
+    .replace(/^(<div class="md-paragraph-break"><\/div>)+/, '')
+    .replace(/(<div class="md-paragraph-break"><\/div>)+$/, '');
+    
+  return text;
 }
 
 export default {

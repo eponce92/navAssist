@@ -125,48 +125,104 @@
 #showChatToggle {
   position: fixed;
   right: 0;
-  top: 50%;
-  transform: translateY(-50%);
   width: 32px;
   height: 48px;
-  background-color: var(--primary-color);
   border: none;
-  border-radius: 12px 0 0 12px;
-  cursor: move;
+  background-color: var(--primary-color);
+  color: white;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 2147483647;
-  box-shadow: -2px 0 8px var(--shadow-color);
-  opacity: 1;
-  visibility: visible;
-  transition: background-color 0.3s ease, 
-              width 0.3s ease,
-              opacity 0.3s ease;
-  touch-action: none;
-  user-select: none;
-}
-
-#showChatToggle.dragging {
-  cursor: grabbing;
-  background-color: var(--primary-color-hover);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 #showChatToggle:hover {
-  background-color: var(--primary-color-hover);
   width: 36px;
+  background-color: var(--primary-color-hover);
+  box-shadow: -3px 3px 12px rgba(0, 0, 0, 0.2);
+}
+
+#showChatToggle:active {
+  transform: translateX(-1px);
+}
+
+#showChatToggle.dragging {
+  opacity: 0.9;
+  cursor: grabbing;
 }
 
 #showChatToggle svg {
   width: 20px;
   height: 20px;
   color: white;
-  transition: transform 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
+  opacity: 0.9;
 }
 
 #showChatToggle:hover svg {
   transform: translateX(-2px);
+  opacity: 1;
+}
+
+/* Smooth show/hide animations */
+#showChatToggle {
+  opacity: 0;
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+#showChatToggle.hiding {
+  animation: fadeOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+/* Add a subtle glow effect on hover */
+#showChatToggle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  pointer-events: none;
+}
+
+#showChatToggle:hover::before {
+  opacity: 1;
 }
 
 #chatWindow {
@@ -396,35 +452,129 @@ body {
   background-color: var(--message-bg-assistant);
   color: var(--text-color);
   margin-right: 15%;
-  padding-bottom: 36px; /* Add space for buttons */
+  padding-bottom: 36px; /* Space for buttons */
 }
 
 .message-content {
+  font-size: 14px;
+  line-height: 1.5;
   white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
-.message-content p {
-  margin: 0 0 8px 0;
+.message-content .md-h1 {
+  font-size: 1.4em;
+  font-weight: 600;
+  margin: 0.5em 0;
+  color: inherit;
+  line-height: 1.3;
 }
 
-.message-content p:last-child {
+.message-content .md-h2 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 0.4em 0;
+  color: inherit;
+  line-height: 1.3;
+}
+
+.message-content .md-h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 0.3em 0;
+  color: inherit;
+  line-height: 1.3;
+}
+
+.message-content .md-bold {
+  font-weight: 600;
+}
+
+.message-content .md-italic {
+  font-style: italic;
+}
+
+.message-content .md-list-item {
+  padding-left: 1em;
+  margin: 0.2em 0;
+  position: relative;
+}
+
+.message-content .code-block {
+  background-color: #f6f8fa;
+  padding: 1em;
+  margin: 0.8em 0;
+  border-radius: 8px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  overflow-x: auto;
+  border: 1px solid #e1e4e8;
+  line-height: 1.45;
+  position: relative;
+  white-space: pre;
+}
+
+.message-content .inline-code {
+  background-color: #f6f8fa;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  border: 1px solid #e1e4e8;
+  color: #24292e;
+}
+
+.message-content .md-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.message-content .md-link:hover {
+  border-bottom-color: var(--primary-color);
+}
+
+.message-content .md-paragraph-break {
+  height: 0.8em;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .message-content .code-block {
+  background-color: #1f2428;
+  border-color: #2f363d;
+  color: #e1e4e8;
+}
+
+[data-theme="dark"] .message-content .inline-code {
+  background-color: #1f2428;
+  border-color: #2f363d;
+  color: #e1e4e8;
+}
+
+[data-theme="dark"] .message-content .md-link {
+  color: #7986CB;
+}
+
+/* Ensure proper spacing */
+.message-content > *:first-child {
+  margin-top: 0;
+}
+
+.message-content > *:last-child {
   margin-bottom: 0;
 }
 
-.message-content pre {
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 8px;
-  border-radius: 6px;
-  overflow-x: auto;
-  margin: 8px 0;
+/* Simple styles for markdown elements */
+.message-content strong {
+  font-weight: 600;
 }
 
-.message-content code {
-  font-family: monospace;
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 2px 4px;
-  border-radius: 4px;
+.message-content em {
+  font-style: italic;
 }
+
+/* Remove all complex markdown styles */
 
 #sendMessage {
   background-color: var(--primary-color);
