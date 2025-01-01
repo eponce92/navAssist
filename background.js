@@ -101,8 +101,7 @@ function handleSummarizeContent(sender, tabId) {
     const apiKey = data.openrouterApiKey;
       
       const prompt = 
-        `USE MARKDOWN FORMAT FOR YOUR RESPONSE !!!
-        Summarize the following content in the same language as the content:
+        `Summarize the following content in the same language as the content:
 
         Resuma el siguiente contenido en el mismo idioma que el contenido:
 
@@ -111,6 +110,7 @@ function handleSummarizeContent(sender, tabId) {
         Zusammenfassen Sie den folgenden Inhalt in derselben Sprache wie den Inhalt:
 
         NEVER CHANGE THE LANGUAGE OF THE CONTENT, JUST SUMMARIZE IT.
+        DO NOT USE CODE BLOCKS OR MARKDOWN FORMATTING IN YOUR RESPONSE.
 
         ${pageContent}`;
       
